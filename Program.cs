@@ -61,13 +61,13 @@ namespace TACTIndexTestCSharp
             var ramDiffAfterLoose = Process.GetCurrentProcess().WorkingSet64 - ramAfterGroupIndex;
             Console.WriteLine("RAM usage difference loose indices: " + ramDiffAfterLoose / 1024 / 1024 + "MB");
 
-            var oldIndexSW = new Stopwatch();
-            oldIndexSW.Start();
-            GetIndexes(baseDir, archives.ToArray());
-            oldIndexSW.Stop();
-            Console.WriteLine("Loaded " + indexDictionary.Count + " indices in " + oldIndexSW.Elapsed.TotalMilliseconds + "ms");
-            var ramDiffAfterOld = Process.GetCurrentProcess().WorkingSet64 - ramAfterGroupIndex - ramAfterGroupIndex;
-            Console.WriteLine("RAM usage difference old indices: " + ramDiffAfterOld / 1024 / 1024 + "MB");
+            //var oldIndexSW = new Stopwatch();
+            //oldIndexSW.Start();
+            //GetIndexes(baseDir, archives.ToArray());
+            //oldIndexSW.Stop();
+            //Console.WriteLine("Loaded " + indexDictionary.Count + " indices in " + oldIndexSW.Elapsed.TotalMilliseconds + "ms");
+            //var ramDiffAfterOld = Process.GetCurrentProcess().WorkingSet64 - ramAfterGroupIndex - ramAfterGroupIndex;
+            //Console.WriteLine("RAM usage difference old indices: " + ramDiffAfterOld / 1024 / 1024 + "MB");
 
             var checkedKeys = 0;
             var looseFaster = 0;
@@ -101,13 +101,13 @@ namespace TACTIndexTestCSharp
                     }
                 });
 
-                oldIndexSW.Restart();
-                if (indexDictionary.TryGetValue(parts[1].ToUpper(), out var indexEntry))
-                {
-                    oldIndexSW.Stop();
-                    Console.WriteLine("Old (" + indexEntry.offset + ", " + indexEntry.size + ", " + indexEntry.index + " lookup took " + oldIndexSW.Elapsed.TotalMilliseconds + "ms");
-                }
-                oldIndexSW.Stop();
+                //oldIndexSW.Restart();
+                //if (indexDictionary.TryGetValue(parts[1].ToUpper(), out var indexEntry))
+                //{
+                //    oldIndexSW.Stop();
+                //    Console.WriteLine("Old (" + indexEntry.offset + ", " + indexEntry.size + ", " + indexEntry.index + " lookup took " + oldIndexSW.Elapsed.TotalMilliseconds + "ms");
+                //}
+                //oldIndexSW.Stop();
 
                 if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
                 {

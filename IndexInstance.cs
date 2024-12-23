@@ -1,4 +1,5 @@
-﻿using System.IO.MemoryMappedFiles;
+﻿using Microsoft.Win32.SafeHandles;
+using System.IO.MemoryMappedFiles;
 
 namespace TACTIndexTestCSharp
 {
@@ -11,109 +12,132 @@ namespace TACTIndexTestCSharp
         private bool isGroupArchive;
         private readonly List<byte[]> lastEKeys = [];
 
+        private MemoryMappedFile indexFile;
+        private MemoryMappedViewAccessor accessor;
+        private SafeMemoryMappedViewHandle mmapViewHandle;
+
+        private int blockSizeBytes;
+        private int entrySize;
+        private int entriesPerBlock;
+        private int entriesInLastBlock;
+        private int numBlocks;
+        private int ofsStartOfToc;
+        private int ofsEndOfTocEkeys;
+
         public IndexInstance(string path, short archiveIndex = -1)
         {
             this.archiveIndex = archiveIndex;
             this.path = path;
             indexSize = new FileInfo(path).Length;
 
-            using (var indexFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, Path.GetFileNameWithoutExtension(path)))
-            {
-                using (var accessor = indexFile.CreateViewAccessor(indexSize - 20, 20, MemoryMappedFileAccess.Read))
-                    accessor.Read(0, out footer);
+            this.indexFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            this.accessor = indexFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+            this.mmapViewHandle = accessor.SafeMemoryMappedViewHandle;
 
-                isGroupArchive = footer.offsetBytes == 6;
+            using (var accessor = this.indexFile.CreateViewAccessor(indexSize - 20, 20, MemoryMappedFileAccess.Read))
+                accessor.Read(0, out footer);
 
-                var blockSizeBytes = footer.blockSizeKBytes << 10;
-                var entrySize = footer.keyBytes + footer.sizeBytes + footer.offsetBytes;
-                var entriesPerBlock = blockSizeBytes / entrySize;
-                var numBlocks = (int)Math.Ceiling((double)footer.numElements / entriesPerBlock);
+            isGroupArchive = footer.offsetBytes == 6;
 
-                var ofsStartOfToc = numBlocks * blockSizeBytes;
-                var ofsEndOfTocEkeys = ofsStartOfToc + footer.keyBytes * numBlocks;
+            this.blockSizeBytes = footer.blockSizeKBytes << 10;
+            this.entrySize = footer.keyBytes + footer.sizeBytes + footer.offsetBytes;
+            this.entriesPerBlock = this.blockSizeBytes / this.entrySize;
+            this.numBlocks = (int)Math.Ceiling((double)footer.numElements / this.entriesPerBlock);
+            this.entriesInLastBlock = (int)footer.numElements - (this.numBlocks - 1) * this.entriesPerBlock;
 
-                var data = new byte[ofsEndOfTocEkeys - ofsStartOfToc];
-
-                using (var accessor = indexFile.CreateViewAccessor(ofsStartOfToc, ofsEndOfTocEkeys - ofsStartOfToc, MemoryMappedFileAccess.Read))
-                    accessor.ReadArray(0, data, 0, data.Length);
-
-                var dataAsSpan = data.AsSpan();
-
-                for (var i = 0; i < numBlocks; i++)
-                {
-                    var eKeyCompare = dataAsSpan.Slice(i * footer.keyBytes, footer.keyBytes);
-                    lastEKeys.Add(eKeyCompare.ToArray());
-                }
-            }
+            this.ofsStartOfToc = this.numBlocks * this.blockSizeBytes;
+            this.ofsEndOfTocEkeys = ofsStartOfToc + footer.keyBytes * this.numBlocks;
         }
 
-        public (int offset, int size, int archiveIndex) GetIndexInfo(string targetEKey)
+        // Binary search pointing to the first element **not** comparing SequenceCompareTo < 0 anymore.
+        // [1 3 4 6]: 0 -> 1; 1 -> 1; 2 -> 3; 3 -> 3; 4 -> 4; 5 -> 6; 6 -> 6; 7 -> end.
+        unsafe static private byte* lowerBoundEkey(byte* begin, byte* end, long dataSize, ReadOnlySpan<byte> needle)
+        {
+            var count = (end - begin) / dataSize;
+
+            while (count > 0)
+            {
+                var it = begin;
+                var step = count / 2;
+                it += step * dataSize;
+
+                if (new ReadOnlySpan<byte>(it, needle.Length).SequenceCompareTo(needle) < 0)
+                {
+                    it += dataSize;
+                    begin = it;
+                    count -= step + 1;
+                }
+                else
+                {
+                    count = step;
+                }
+            }
+
+            return begin;
+        }
+
+        unsafe public (int offset, int size, int archiveIndex) GetIndexInfo(string targetEKey)
         {
             var eKeyTarget = Convert.FromHexString(targetEKey).AsSpan();
-            var targetBlock = 0;
 
-            foreach (var lastEKey in lastEKeys)
+            byte* fileData = null;
+            try
             {
-                if (lastEKey.AsSpan().SequenceCompareTo(eKeyTarget) > 0)
-                    break;
+                mmapViewHandle.AcquirePointer(ref fileData);
 
-                targetBlock++;
-            }
+                byte* startOfToc = fileData + this.ofsStartOfToc;
+                byte* endOfTocEkeys = fileData + this.ofsEndOfTocEkeys;
 
-            var blockIndexMaybeContainingEkey = targetBlock;
-
-            var blockSizeBytes = footer.blockSizeKBytes << 10;
-            var entrySize = footer.keyBytes + footer.sizeBytes + footer.offsetBytes;
-            var entriesPerBlock = blockSizeBytes / entrySize;
-            var numBlocks = (int)Math.Ceiling((double)footer.numElements / entriesPerBlock);
-            var ofsStartOfCandidateBlock = blockIndexMaybeContainingEkey * blockSizeBytes;
-            var entriesOfCandidateBlock = blockIndexMaybeContainingEkey != numBlocks - 1 ? entriesPerBlock : (footer.numElements - (numBlocks - 1) * entriesPerBlock);
-            var ofsEndOfCandidateBlock = ofsStartOfCandidateBlock + entrySize * entriesOfCandidateBlock;
-
-            if (ofsEndOfCandidateBlock >= indexSize)
-            {
-                return (-1, -1, -1);
-            }
-
-            byte[] candidateBlockData = new byte[ofsEndOfCandidateBlock - ofsStartOfCandidateBlock];
-
-            using (var indexFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, Path.GetFileNameWithoutExtension(path), 0, MemoryMappedFileAccess.Read))
-            {
-                using (var accessor = indexFile.CreateViewAccessor(ofsStartOfCandidateBlock, candidateBlockData.Length, MemoryMappedFileAccess.Read))
+                byte* lastEkey = lowerBoundEkey(startOfToc, endOfTocEkeys, footer.keyBytes, eKeyTarget);
+                if (lastEkey == endOfTocEkeys)
                 {
-                    accessor.ReadArray(0, candidateBlockData, 0, candidateBlockData.Length);
+                    //Console.WriteLine("toc: no block with keys <= target");
+                    return (-1, -1, -1);
+                }
+
+                var blockIndexMaybeContainingEkey = (lastEkey - startOfToc) / footer.keyBytes;
+
+                var ofsStartOfCandidateBlock = blockIndexMaybeContainingEkey * this.blockSizeBytes;
+                var entriesOfCandidateBlock = blockIndexMaybeContainingEkey != this.numBlocks - 1 ? this.entriesPerBlock : this.entriesInLastBlock;
+                var ofsEndOfCandidateBlock = ofsStartOfCandidateBlock + this.entrySize * entriesOfCandidateBlock;
+
+                byte* startOfCandidateBlock = fileData + ofsStartOfCandidateBlock;
+                byte* endOfCandidateBlock = fileData + ofsEndOfCandidateBlock;
+
+                byte* candidate = lowerBoundEkey(startOfCandidateBlock, endOfCandidateBlock, this.entrySize, eKeyTarget);
+
+                if (candidate == endOfCandidateBlock)
+                {
+                    //Console.WriteLine("block: no key in block <= target");
+                    return (-1, -1, -1);
+                }
+
+                var entry = new ReadOnlySpan<byte>(candidate, this.entrySize);
+                if (entry.Slice(0, footer.keyBytes).SequenceCompareTo(eKeyTarget) != 0)
+                {
+                    //Console.WriteLine("block: candidate does not match");
+                    return (-1, -1, -1);
+                }
+
+                if (isGroupArchive)
+                {
+                    var encodedSize = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+                    var fileArchiveIndex = entry.Slice(footer.keyBytes + footer.sizeBytes, 2).ReadInt16BE();
+                    var offset = entry.Slice(footer.keyBytes + footer.sizeBytes + 2, 4).ReadInt32BE();
+                    return (offset, encodedSize, fileArchiveIndex);
+                }
+                else
+                {
+                    var encodedSize = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+                    var offset = entry.Slice(footer.keyBytes + footer.sizeBytes, footer.offsetBytes).ReadInt32BE();
+                    return (offset, encodedSize, archiveIndex);
                 }
             }
-            //using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-            //{
-            //    fs.Position = ofsStartOfCandidateBlock;
-            //    fs.ReadExactly(candidateBlockData, 0, (int)ofsEndOfCandidateBlock - ofsStartOfCandidateBlock);
-            //}
-
-            var candidateBlockDataAsSpan = candidateBlockData.AsSpan();
-
-            for (int i = 0; i < entriesOfCandidateBlock; i++)
+            finally
             {
-                var entry = candidateBlockDataAsSpan.Slice(i * entrySize, entrySize);
-                if (entry.Slice(0, footer.keyBytes).SequenceEqual(eKeyTarget))
-                {
-                    if (isGroupArchive)
-                    {
-                        var encodedSize = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
-                        var fileArchiveIndex = entry.Slice(footer.keyBytes + footer.sizeBytes, 2).ReadInt16BE();
-                        var offset = entry.Slice(footer.keyBytes + footer.sizeBytes + 2, 4).ReadInt32BE();
-                        return (offset, encodedSize, fileArchiveIndex);
-                    }
-                    else
-                    {
-                        var encodedSize = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
-                        var offset = entry.Slice(footer.keyBytes + footer.sizeBytes, footer.offsetBytes).ReadInt32BE();
-                        return (offset, encodedSize, archiveIndex);
-                    }
-                }
+                if (fileData != null)
+                    mmapViewHandle.ReleasePointer();
             }
-
-            return (-1, -1, -1);
         }
 
         private unsafe struct IndexFooter
