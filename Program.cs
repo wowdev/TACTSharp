@@ -1,6 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Drawing;
-using System.Linq.Expressions;
 
 namespace TACTIndexTestCSharp
 {
@@ -73,33 +71,43 @@ namespace TACTIndexTestCSharp
             var looseFaster = 0;
             var groupFaster = 0;
 
+            var eKeysToCheck = new List<string>();
+
             foreach (var line in File.ReadAllLines("D:\\Downloads\\11.1.encodingdump")) // https://old.wow.tools/pub/11.1.encodingdump
             {
                 var parts = line.Split(' ');
 
-                gaSW.Restart();
-                var (gaOffset, gaSize, gaArchiveIndex) = groupIndex.GetIndexInfo(parts[1]);
-                gaSW.Stop();
+                if (parts[0] == "ENCODINGESPEC")
+                    continue;
 
-                if (gaOffset != -1)
-                    Console.WriteLine("Group (" + gaOffset + ", " + gaSize + ", " + gaArchiveIndex + " lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
+                eKeysToCheck.Add(parts[1]);
+            }
 
-                var found = false;
+            gaSW.Restart();
+            foreach (var eKey in eKeysToCheck) {
+                //gaSW.Restart();
+                var (gaOffset, gaSize, gaArchiveIndex) = groupIndex.GetIndexInfo(eKey);
+                //gaSW.Stop();
 
-                archiveSW.Restart();
+                //   if (gaOffset != -1)
+                //        Console.WriteLine("Group (" + gaOffset + ", " + gaSize + ", " + gaArchiveIndex + " lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
 
-                Parallel.ForEach(indices, index =>
-                {
-                    if(found)
-                        return;
-                    var (offset, size, archiveIndex) = index.GetIndexInfo(parts[1]);
-                    if (offset != -1)
-                    {
-                        archiveSW.Stop();
-                        found = true;
-                        Console.WriteLine("Loose (" + offset + ", " + size + ", " + archiveIndex + " lookup took " + archiveSW.Elapsed.TotalMilliseconds + "ms");
-                    }
-                });
+                //var found = false;
+
+                //archiveSW.Restart();
+
+                //Parallel.ForEach(indices, index =>
+                //{
+                //    if(found)
+                //        return;
+                //    var (offset, size, archiveIndex) = index.GetIndexInfo(parts[1]);
+                //    if (offset != -1)
+                //    {
+                //        archiveSW.Stop();
+                //        found = true;
+                //        //Console.WriteLine("Loose (" + offset + ", " + size + ", " + archiveIndex + " lookup took " + archiveSW.Elapsed.TotalMilliseconds + "ms");
+                //    }
+                //});
 
                 //oldIndexSW.Restart();
                 //if (indexDictionary.TryGetValue(parts[1].ToUpper(), out var indexEntry))
@@ -109,24 +117,26 @@ namespace TACTIndexTestCSharp
                 //}
                 //oldIndexSW.Stop();
 
-                if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
-                {
-                    looseFaster++;
-                }
-                else
-                {
-                    groupFaster++;
-                }
+                //if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
+                //{
+                //    looseFaster++;
+                //}
+                //else
+                //{
+                //    groupFaster++;
+                //}
 
-                checkedKeys++;
+                //checkedKeys++;
 
-                if(checkedKeys % 1000 == 0)
-                {
-                    Console.WriteLine("Checked " + checkedKeys + " keys");
-                    Console.WriteLine("Group faster: " + groupFaster);
-                    Console.WriteLine("Loose faster: " + looseFaster);
-                }
+                //if (checkedKeys % 1000 == 0)
+                //{
+                //    Console.WriteLine("Checked " + checkedKeys + " keys");
+                //    //Console.WriteLine("Group faster: " + groupFaster);
+                //    //Console.WriteLine("Loose faster: " + looseFaster);
+                //}
             }
+            gaSW.Stop();
+            Console.WriteLine("Group lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
         }
 
         public struct IndexEntry
