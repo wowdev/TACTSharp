@@ -90,7 +90,7 @@ namespace TACTIndexTestCSharp
                 var entriesOfCandidateBlock = blockIndexMaybeContainingEkey != this.numBlocks - 1 ? this.entriesPerBlock : this.entriesInLastBlock;
                 var ofsEndOfCandidateBlock = ofsStartOfCandidateBlock + this.entrySize * entriesOfCandidateBlock;
 
-                var candidateBlockSpan = fileSpan.Slice(ofsStartOfCandidateBlock, ofsEndOfCandidateBlock - ofsStartOfCandidateBlock);
+                var candidateBlockSpan = fileSpan[ofsStartOfCandidateBlock..ofsEndOfCandidateBlock];
 
                 var candidateOffset = lowerBoundEkey(tocSpan, this.entrySize, eKeyTarget);
 
