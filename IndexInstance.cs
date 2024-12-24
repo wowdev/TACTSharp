@@ -25,7 +25,7 @@ namespace TACTIndexTestCSharp
         public IndexInstance(string path, short archiveIndex = -1)
         {
             this.archiveIndex = archiveIndex;
-            indexSize = new FileInfo(path).Length;
+            this.indexSize = new FileInfo(path).Length;
 
             this.indexFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             this.accessor = indexFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
@@ -48,73 +48,58 @@ namespace TACTIndexTestCSharp
 
         // Binary search pointing to the first element **not** comparing SequenceCompareTo < 0 anymore.
         // [1 3 4 6]: 0 -> 1; 1 -> 1; 2 -> 3; 3 -> 3; 4 -> 4; 5 -> 6; 6 -> 6; 7 -> end.
-        unsafe static private byte* lowerBoundEkey(byte* begin, byte* end, long dataSize, ReadOnlySpan<byte> needle)
+        private static int lowerBoundEkey(ReadOnlySpan<byte> dataSpan, int dataSize, ReadOnlySpan<byte> needle)
         {
-            var count = (end - begin) / dataSize;
+            var left = 0;
+            int right = dataSpan.Length / dataSize;
 
-            while (count > 0)
+            while (left < right)
             {
-                var it = begin;
-                var step = count / 2;
-                it += step * dataSize;
+                int middle = left + (right - left) / 2;
+                var entry = dataSpan.Slice((middle * dataSize), needle.Length);
 
-                if (new ReadOnlySpan<byte>(it, needle.Length).SequenceCompareTo(needle) < 0)
-                {
-                    it += dataSize;
-                    begin = it;
-                    count -= step + 1;
-                }
+                if (entry.SequenceCompareTo(needle) < 0)
+                    left = middle + 1;
                 else
-                {
-                    count = step;
-                }
+                    right = middle;
             }
 
-            return begin;
+            return left * dataSize;
         }
 
         unsafe public (int offset, int size, int archiveIndex) GetIndexInfo(string targetEKey)
         {
             var eKeyTarget = Convert.FromHexString(targetEKey).AsSpan();
 
+            // i dont think this pointer can be rid of, only way is to make a span over a byte array read from the accessor which kinda defeats the point
             byte* fileData = null;
             try
             {
                 mmapViewHandle.AcquirePointer(ref fileData);
 
-                byte* startOfToc = fileData + this.ofsStartOfToc;
-                byte* endOfTocEkeys = fileData + this.ofsEndOfTocEkeys;
+                var fileSpan = new ReadOnlySpan<byte>(fileData, (int)indexSize);
+                var tocSpan = fileSpan[ofsStartOfToc..ofsEndOfTocEkeys];
 
-                byte* lastEkey = lowerBoundEkey(startOfToc, endOfTocEkeys, footer.keyBytes, eKeyTarget);
-                if (lastEkey == endOfTocEkeys)
-                {
-                    //Console.WriteLine("toc: no block with keys <= target");
+                var lastEkey = lowerBoundEkey(tocSpan, footer.keyBytes, eKeyTarget);
+                if (lastEkey >= tocSpan.Length)
                     return (-1, -1, -1);
-                }
 
-                var blockIndexMaybeContainingEkey = (lastEkey - startOfToc) / footer.keyBytes;
+                var blockIndexMaybeContainingEkey = lastEkey / footer.keyBytes;
 
                 var ofsStartOfCandidateBlock = blockIndexMaybeContainingEkey * this.blockSizeBytes;
                 var entriesOfCandidateBlock = blockIndexMaybeContainingEkey != this.numBlocks - 1 ? this.entriesPerBlock : this.entriesInLastBlock;
                 var ofsEndOfCandidateBlock = ofsStartOfCandidateBlock + this.entrySize * entriesOfCandidateBlock;
 
-                byte* startOfCandidateBlock = fileData + ofsStartOfCandidateBlock;
-                byte* endOfCandidateBlock = fileData + ofsEndOfCandidateBlock;
+                var candidateBlockSpan = fileSpan.Slice(ofsStartOfCandidateBlock, ofsEndOfCandidateBlock - ofsStartOfCandidateBlock);
 
-                byte* candidate = lowerBoundEkey(startOfCandidateBlock, endOfCandidateBlock, this.entrySize, eKeyTarget);
+                var candidateOffset = lowerBoundEkey(tocSpan, this.entrySize, eKeyTarget);
 
-                if (candidate == endOfCandidateBlock)
-                {
-                    //Console.WriteLine("block: no key in block <= target");
+                if (candidateOffset >= candidateBlockSpan.Length)
                     return (-1, -1, -1);
-                }
 
-                var entry = new ReadOnlySpan<byte>(candidate, this.entrySize);
-                if (entry.Slice(0, footer.keyBytes).SequenceCompareTo(eKeyTarget) != 0)
-                {
-                    //Console.WriteLine("block: candidate does not match");
+                var entry = candidateBlockSpan.Slice(candidateOffset, this.entrySize);
+                if (entry[..footer.keyBytes].SequenceCompareTo(eKeyTarget) != 0)
                     return (-1, -1, -1);
-                }
 
                 if (isGroupArchive)
                 {
