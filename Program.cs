@@ -80,60 +80,58 @@ namespace TACTIndexTestCSharp
                 if (parts[0] == "ENCODINGESPEC")
                     continue;
 
-                eKeysToCheck.Add(parts[1]);
+                eKeysToCheck.Add(parts[1].Trim());
             }
 
             gaSW.Restart();
             foreach (var eKey in eKeysToCheck) {
-                //gaSW.Restart();
-                var (gaOffset, gaSize, gaArchiveIndex) = groupIndex.GetIndexInfo(eKey);
-                //gaSW.Stop();
+                var eKeyTarget = Convert.FromHexString(eKey);
 
-                //   if (gaOffset != -1)
-                //        Console.WriteLine("Group (" + gaOffset + ", " + gaSize + ", " + gaArchiveIndex + " lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
+                var gaFound = false;
 
-                //var found = false;
+                gaSW.Restart();
+                var (gaOffset, gaSize, gaArchiveIndex) = groupIndex.GetIndexInfo(eKeyTarget.AsSpan());
+                gaSW.Stop();
 
-                //archiveSW.Restart();
+                if (gaOffset != -1)
+                {
+                    //Console.WriteLine("Group (" + gaOffset + ", " + gaSize + ", " + gaArchiveIndex + " lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
+                    gaFound = true;
+                }
 
-                //Parallel.ForEach(indices, index =>
-                //{
-                //    if(found)
-                //        return;
-                //    var (offset, size, archiveIndex) = index.GetIndexInfo(parts[1]);
-                //    if (offset != -1)
-                //    {
-                //        archiveSW.Stop();
-                //        found = true;
-                //        //Console.WriteLine("Loose (" + offset + ", " + size + ", " + archiveIndex + " lookup took " + archiveSW.Elapsed.TotalMilliseconds + "ms");
-                //    }
-                //});
+                var looseFound = false;
 
-                //oldIndexSW.Restart();
-                //if (indexDictionary.TryGetValue(parts[1].ToUpper(), out var indexEntry))
-                //{
-                //    oldIndexSW.Stop();
-                //    Console.WriteLine("Old (" + indexEntry.offset + ", " + indexEntry.size + ", " + indexEntry.index + " lookup took " + oldIndexSW.Elapsed.TotalMilliseconds + "ms");
-                //}
-                //oldIndexSW.Stop();
+                archiveSW.Restart();
+                Parallel.ForEach(indices, index =>
+                {
+                    if (looseFound)
+                        return;
 
-                //if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
-                //{
-                //    looseFaster++;
-                //}
-                //else
-                //{
-                //    groupFaster++;
-                //}
+                    var (offset, size, archiveIndex) = index.GetIndexInfo(eKeyTarget.AsSpan());
+                    if (offset != -1)
+                    {
+                        archiveSW.Stop();
+                        looseFound = true;
+                       // Console.WriteLine("Loose (" + offset + ", " + size + ", " + archiveIndex + " lookup took " + archiveSW.Elapsed.TotalMilliseconds + "ms");
+                    }
+                });
 
-                //checkedKeys++;
+                if(looseFound && !gaFound)
+                    Console.WriteLine("Loose found " + eKey + " but group didn't");
+                else if (gaFound && !looseFound)
+                    Console.WriteLine("Group found " + eKey + " but loose didn't");
 
-                //if (checkedKeys % 1000 == 0)
-                //{
-                //    Console.WriteLine("Checked " + checkedKeys + " keys");
-                //    //Console.WriteLine("Group faster: " + groupFaster);
-                //    //Console.WriteLine("Loose faster: " + looseFaster);
-                //}
+                if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
+                    looseFaster++;
+                else
+                    groupFaster++;
+
+                checkedKeys++;
+
+                if (checkedKeys % 1000 == 0)
+                {
+                    Console.WriteLine("Checked " + checkedKeys + " keys");
+                }
             }
             gaSW.Stop();
             Console.WriteLine("Group lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
