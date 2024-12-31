@@ -21,8 +21,10 @@ namespace TACTIndexTestCSharp
 
             var found = 0;
             var total = 0;
-
-            foreach(var line in File.ReadAllLines("D:\\Projects\\wow.tools.local\\manifests\\11.1.0.58221.txt"))
+            var timeList = new List<double>();
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
+            foreach (var line in File.ReadAllLines("D:\\Projects\\wow.tools.local\\manifests\\11.1.0.58221.txt"))
             {
                 total++;
                 var splitLine = line.Split(';');
@@ -31,16 +33,10 @@ namespace TACTIndexTestCSharp
                 eTimer.Restart();
                 var eResult = encoding.GetEKeys(cKeyTarget);
                 eTimer.Stop();
-                Console.WriteLine("EKey lookup took " + eTimer.Elapsed.TotalMilliseconds + "ms");
-
+                //Console.WriteLine("EKey lookup took " + eTimer.Elapsed.TotalMilliseconds + "ms");
+                timeList.Add(eTimer.Elapsed.TotalMilliseconds);
                 if (eResult != null)
                 {
-                    //Console.WriteLine(eResult.Value.eKeyCount + " EKeys found for CKey " + Convert.ToHexStringLower(cKeyTarget));
-                    foreach (var eKey in eResult.Value.eKeys)
-                    {
-                        //Console.WriteLine(Convert.ToHexStringLower(eKey));
-                    }
-
                     found++;
                 }
                 else
@@ -48,13 +44,13 @@ namespace TACTIndexTestCSharp
                     Console.WriteLine("No EKeys found for CKey " + Convert.ToHexStringLower(cKeyTarget));
                 }
 
-                if (total % 1000 == 0)
-                {
-                    Console.WriteLine("Checked " + total + " CKeys (found " + found + ")");
-                }
+                //if (total % 1000 == 0)
+                //{
+                //    Console.WriteLine("Checked " + total + " CKeys (found " + found + ")");
+                //}
             }
-
-            Console.WriteLine("Done, checked " + total + " CKeys (found " + found + ")");
+            stopWatch.Stop();
+            Console.WriteLine("Done, checked " + total + " CKeys in a total of " + stopWatch.Elapsed.TotalMilliseconds +"ms (average of " + timeList.Average() + "ms per lookup)");
 
             return;
             IndexInstance groupIndex;
