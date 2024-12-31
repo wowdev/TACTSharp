@@ -8,9 +8,7 @@ namespace TACTIndexTestCSharp
         private long indexSize;
         private IndexFooter footer;
         private short archiveIndex = -1;
-        private string path;
         private bool isGroupArchive;
-        private readonly List<byte[]> lastEKeys = [];
 
         private MemoryMappedFile indexFile;
         private MemoryMappedViewAccessor accessor;
@@ -27,7 +25,6 @@ namespace TACTIndexTestCSharp
         public IndexInstance(string path, short archiveIndex = -1)
         {
             this.archiveIndex = archiveIndex;
-            this.path = path;
             indexSize = new FileInfo(path).Length;
 
             this.indexFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);

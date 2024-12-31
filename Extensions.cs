@@ -11,4 +11,9 @@ static class Extensions
     {
         return BinaryPrimitives.ReadInt32BigEndian(source);
     }
+
+    public static long ReadInt40BE(this ReadOnlySpan<byte> source)
+    {
+        return source[4] | source[3] << 8 | source[2] << 16 | source[1] << 24 | source[0] << 32;
+    }
 }

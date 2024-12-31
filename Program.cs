@@ -8,11 +8,55 @@ namespace TACTIndexTestCSharp
         {
             // mostly based on schlumpf's implementation, but with some changes because i dont know how to port some c++ things to c# properly
 
-            var baseDir = "C:\\World of Warcraft\\data\\";
+            var baseDir = "C:\\Program Files (x86)\\World of Warcraft\\data\\";
 
             var inputArchive = Path.Combine(baseDir, "indices\\ec39d1815cbe1434aa9c77db96ab4211.index");
             var cdnConfig = Path.Combine(baseDir, "config\\cd\\18\\cd18191b8928c33bf24b962e9330460f");
 
+            var eTimer = new Stopwatch();
+            eTimer.Start();
+            var encoding = new EncodingInstance("C:\\Users\\ictma\\Downloads\\e9feda05b1569cccbe49e179f7594617.dump");
+            eTimer.Stop();
+            Console.WriteLine("Loaded encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+            var found = 0;
+            var total = 0;
+
+            foreach(var line in File.ReadAllLines("C:\\Users\\ictma\\Documents\\GitHub\\wow.tools.local\\manifests\\11.1.0.58221.txt"))
+            {
+                total++;
+                var splitLine = line.Split(';');
+                var cKeyTarget = Convert.FromHexString(splitLine[1].Trim());
+
+                eTimer.Restart();
+                var eResult = encoding.GetEKeys(cKeyTarget);
+                eTimer.Stop();
+                //Console.WriteLine("EKey lookup took " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+                if (eResult != null)
+                {
+                    //Console.WriteLine(eResult.Value.eKeyCount + " EKeys found for CKey " + Convert.ToHexStringLower(cKeyTarget));
+                    foreach (var eKey in eResult.Value.eKeys)
+                    {
+                        //Console.WriteLine(Convert.ToHexStringLower(eKey));
+                    }
+
+                    found++;
+                }
+                else
+                {
+                    Console.WriteLine("No EKeys found for CKey " + Convert.ToHexStringLower(cKeyTarget));
+                }
+
+                if (total % 1000 == 0)
+                {
+                    Console.WriteLine("Checked " + total + " CKeys (found " + found + ")");
+                }
+            }
+
+            Console.WriteLine("Done, checked " + total + " CKeys (found " + found + ")");
+
+            return;
             IndexInstance groupIndex;
             var indices = new List<IndexInstance>();
 
@@ -45,19 +89,19 @@ namespace TACTIndexTestCSharp
             var ramAfterGroupIndex = Process.GetCurrentProcess().WorkingSet64;
             Console.WriteLine("RAM usage after group index: " + ramAfterGroupIndex / 1024 / 1024 + "MB");
 
-            archiveSW.Start();
-            for (var i = 0; i < archives.Count; i++)
-            {
-                var archive = archives[i];
-                if (File.Exists(Path.Combine(baseDir, "indices", archive + ".index")))
-                {
-                    indices.Add(new IndexInstance(Path.Combine(baseDir, "indices", archive + ".index"), (short)i));
-                }
-            }
-            archiveSW.Stop();
-            Console.WriteLine("Loaded " + indices.Count + " indices in " + archiveSW.Elapsed.TotalMilliseconds + "ms");
-            var ramDiffAfterLoose = Process.GetCurrentProcess().WorkingSet64 - ramAfterGroupIndex;
-            Console.WriteLine("RAM usage difference loose indices: " + ramDiffAfterLoose / 1024 / 1024 + "MB");
+            //archiveSW.Start();
+            //for (var i = 0; i < archives.Count; i++)
+            //{
+            //    var archive = archives[i];
+            //    if (File.Exists(Path.Combine(baseDir, "indices", archive + ".index")))
+            //    {
+            //        indices.Add(new IndexInstance(Path.Combine(baseDir, "indices", archive + ".index"), (short)i));
+            //    }
+            //}
+            //archiveSW.Stop();
+            //Console.WriteLine("Loaded " + indices.Count + " indices in " + archiveSW.Elapsed.TotalMilliseconds + "ms");
+            //var ramDiffAfterLoose = Process.GetCurrentProcess().WorkingSet64 - ramAfterGroupIndex;
+            //Console.WriteLine("RAM usage difference loose indices: " + ramDiffAfterLoose / 1024 / 1024 + "MB");
 
             //var oldIndexSW = new Stopwatch();
             //oldIndexSW.Start();
@@ -73,7 +117,7 @@ namespace TACTIndexTestCSharp
 
             var eKeysToCheck = new List<string>();
 
-            foreach (var line in File.ReadAllLines("D:\\Downloads\\11.1.encodingdump")) // https://old.wow.tools/pub/11.1.encodingdump
+            foreach (var line in File.ReadAllLines("C:\\Users\\ictma\\Downloads\\11.1.encodingdump")) // https://old.wow.tools/pub/11.1.encodingdump
             {
                 var parts = line.Split(' ');
 
@@ -121,10 +165,10 @@ namespace TACTIndexTestCSharp
                 else if (gaFound && !looseFound)
                     Console.WriteLine("Group found " + eKey + " but loose didn't");
 
-                if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
-                    looseFaster++;
-                else
-                    groupFaster++;
+                //if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
+                //    looseFaster++;
+                //else
+                //    groupFaster++;
 
                 checkedKeys++;
 
