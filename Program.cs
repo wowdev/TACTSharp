@@ -8,21 +8,21 @@ namespace TACTIndexTestCSharp
         {
             // mostly based on schlumpf's implementation, but with some changes because i dont know how to port some c++ things to c# properly
 
-            var baseDir = "C:\\Program Files (x86)\\World of Warcraft\\data\\";
+            var baseDir = "C:\\World of Warcraft\\data\\";
 
             var inputArchive = Path.Combine(baseDir, "indices\\ec39d1815cbe1434aa9c77db96ab4211.index");
             var cdnConfig = Path.Combine(baseDir, "config\\cd\\18\\cd18191b8928c33bf24b962e9330460f");
 
             var eTimer = new Stopwatch();
             eTimer.Start();
-            var encoding = new EncodingInstance("C:\\Users\\ictma\\Downloads\\e9feda05b1569cccbe49e179f7594617.dump");
+            var encoding = new EncodingInstance("D:\\Downloads\\e9feda05b1569cccbe49e179f7594617.dump");
             eTimer.Stop();
             Console.WriteLine("Loaded encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
             var found = 0;
             var total = 0;
 
-            foreach(var line in File.ReadAllLines("C:\\Users\\ictma\\Documents\\GitHub\\wow.tools.local\\manifests\\11.1.0.58221.txt"))
+            foreach(var line in File.ReadAllLines("D:\\Projects\\wow.tools.local\\manifests\\11.1.0.58221.txt"))
             {
                 total++;
                 var splitLine = line.Split(';');
@@ -31,7 +31,7 @@ namespace TACTIndexTestCSharp
                 eTimer.Restart();
                 var eResult = encoding.GetEKeys(cKeyTarget);
                 eTimer.Stop();
-                //Console.WriteLine("EKey lookup took " + eTimer.Elapsed.TotalMilliseconds + "ms");
+                Console.WriteLine("EKey lookup took " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
                 if (eResult != null)
                 {

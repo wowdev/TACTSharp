@@ -63,7 +63,7 @@ namespace TACTIndexTestCSharp
                 var step = count / 2;
                 it += step * dataSize;
 
-                if (new ReadOnlySpan<byte>(it, needle.Length).SequenceCompareTo(needle) < 0)
+                if (new ReadOnlySpan<byte>(it, needle.Length).SequenceCompareTo(needle) <= 0)
                 {
                     it += dataSize;
                     begin = it;
@@ -89,7 +89,7 @@ namespace TACTIndexTestCSharp
             byte* endOfPageKeys = startOfPageKeys + (header.CEKeyPageTablePageCount * 32);
 
             byte* lastPageKey = lowerBoundEkey(startOfPageKeys, endOfPageKeys, 32, cKeyTarget);
-            if (lastPageKey == endOfPageKeys)
+            if (lastPageKey == startOfPageKeys)
                 return null;
 
             // BAD
