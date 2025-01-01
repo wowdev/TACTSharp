@@ -56,7 +56,7 @@
             {
                 Headers =
                 {
-                    Range = new System.Net.Http.Headers.RangeHeaderValue(offset, offset + size)
+                    Range = new System.Net.Http.Headers.RangeHeaderValue(offset, offset + size - 1)
                 }
             };
 
