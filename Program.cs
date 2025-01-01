@@ -79,7 +79,7 @@ namespace TACTIndexTestCSharp
             var xyzm2 = rootInstance.GetEntryByFDID(189077) ?? throw new Exception("xyz.m2 not found in root");
 
             eTimer.Restart();
-            if (!encoding.TryGetEKeys(xyzm2[0].md5, out var xyzEKeys) || xyzEKeys == null)
+            if (!encoding.TryGetEKeys(xyzm2.md5, out var xyzEKeys) || xyzEKeys == null)
                 throw new Exception("EKey not found in encoding");
             eTimer.Stop();
             Console.WriteLine("EKey lookup in encoding took " + eTimer.Elapsed.TotalMilliseconds + "ms");

@@ -11,8 +11,8 @@ namespace TACTIndexTestCSharp
         private MemoryMappedViewAccessor accessor;
         private SafeMemoryMappedViewHandle mmapViewHandle;
 
-        private static readonly MultiDictionary<ulong, RootEntry> entriesLookup = [];
-        private static readonly MultiDictionary<uint, RootEntry> entriesFDID = [];
+        private static readonly Dictionary<ulong, RootEntry> entriesLookup = [];
+        private static readonly Dictionary<uint, RootEntry> entriesFDID = [];
 
         [Flags]
         public enum LocaleFlags : uint
@@ -86,12 +86,12 @@ namespace TACTIndexTestCSharp
             public byte[] md5;
         }
 
-        public List<RootEntry> GetEntryByFDID(uint fileDataID)
+        public RootEntry? GetEntryByFDID(uint fileDataID)
         {
-            if (entriesFDID.TryGetValue(fileDataID, out var entries))
-                return entries;
+            if (entriesFDID.TryGetValue(fileDataID, out var entry))
+                return entry;
 
-            return [];
+            return null;
         }
 
         unsafe public RootInstance(string path)
@@ -181,72 +181,101 @@ namespace TACTIndexTestCSharp
                     offset += 4;
                 }
 
-                var entries = new RootEntry[count];
-                var filedataIds = new int[count];
+                var localeSkip = !localeFlags.HasFlag(LocaleFlags.All_WoW) && !localeFlags.HasFlag(LocaleFlags.enUS);
+                var contentSkip = (contentFlags & ContentFlags.LowViolence) != 0;
 
-                var fileDataIndex = 0;
-                for (var i = 0; i < count; ++i)
+                var skipChunk = localeSkip || contentSkip;
+
+                if (skipChunk)
                 {
-                    entries[i].localeFlags = localeFlags;
-                    entries[i].contentFlags = contentFlags;
+                     offset += (int)count * 4; // FileDataID map
 
-                    var fileDataIDOffset = BinaryPrimitives.ReadInt32LittleEndian(rootdata.Slice(offset, 4));
-                    offset += 4;
-
-                    filedataIds[i] = fileDataIndex + fileDataIDOffset;
-                    entries[i].fileDataID = (uint)filedataIds[i];
-                    fileDataIndex = filedataIds[i] + 1;
-                }
-
-                if (!newRoot)
-                {
-                    for (var i = 0; i < count; ++i)
+                    if (!newRoot)
                     {
-                        entries[i].md5 = rootdata.Slice(offset, 16).ToArray();
-                        offset += 16;
-
-                        entries[i].lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offset, 8));
-                        offset += 8;
-
-                        entriesLookup.Add(entries[i].lookup, entries[i]);
-                        entriesFDID.Add(entries[i].fileDataID, entries[i]);
+                        offset += (int)count * 24;
+                    }
+                    else
+                    {
+                        offset += (int)count * 16; // MD5s
+                        if(!contentFlags.HasFlag(ContentFlags.NoNames))
+                            offset += (int)count * 8; // Lookup
                     }
                 }
                 else
                 {
+                    var entries = new RootEntry[count];
+                    var filedataIds = new int[count];
+
+                    var fileDataIndex = 0;
                     for (var i = 0; i < count; ++i)
                     {
-                        entries[i].md5 = rootdata.Slice(offset, 16).ToArray();
-                        offset += 16;
+                        entries[i].localeFlags = localeFlags;
+                        entries[i].contentFlags = contentFlags;
+
+                        var fileDataIDOffset = BinaryPrimitives.ReadInt32LittleEndian(rootdata.Slice(offset, 4));
+                        offset += 4;
+
+                        filedataIds[i] = fileDataIndex + fileDataIDOffset;
+                        entries[i].fileDataID = (uint)filedataIds[i];
+                        fileDataIndex = filedataIds[i] + 1;
                     }
 
-                    for (var i = 0; i < count; ++i)
+                    if (!newRoot)
                     {
-                        if (contentFlags.HasFlag(ContentFlags.NoNames))
+                        for (var i = 0; i < count; ++i)
                         {
-                            entries[i].lookup = 0;
-                            unnamedCount++;
-                        }
-                        else
-                        {
+                            entries[i].md5 = rootdata.Slice(offset, 16).ToArray();
+                            offset += 16;
+
                             entries[i].lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offset, 8));
                             offset += 8;
+
                             entriesLookup.Add(entries[i].lookup, entries[i]);
-                            namedCount++;
+                            entriesFDID.Add(entries[i].fileDataID, entries[i]);
+                        }
+                    }
+                    else
+                    {
+                        for (var i = 0; i < count; ++i)
+                        {
+                            entries[i].md5 = rootdata.Slice(offset, 16).ToArray();
+                            offset += 16;
                         }
 
-                        entriesFDID.Add(entries[i].fileDataID, entries[i]);
+                        for (var i = 0; i < count; ++i)
+                        {
+                            if (contentFlags.HasFlag(ContentFlags.NoNames))
+                            {
+                                entries[i].lookup = 0;
+                                unnamedCount++;
+                            }
+                            else
+                            {
+                                entries[i].lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offset, 8));
+                                offset += 8;
+                                entriesLookup.TryAdd(entries[i].lookup, entries[i]);
+                                namedCount++;
+                            }
+
+                            if (!entriesFDID.TryAdd(entries[i].fileDataID, entries[i]))
+                            {
+                                //if (!value.md5.SequenceEqual(entries[i].md5))
+                                //{
+                                //    Console.WriteLine("Attempted to add duplicate FDID " + entries[i].fileDataID);
+                                //    Console.WriteLine("\t Existing entry has localeFlags " + value.localeFlags + " and contentFlags " + value.contentFlags + " and ckey " + Convert.ToHexStringLower(value.md5));
+                                //    Console.WriteLine("\t New entry has localeFlags " + entries[i].localeFlags + " and contentFlags " + entries[i].contentFlags + " and ckey " + Convert.ToHexStringLower(entries[i].md5));
+                                //}
+                            }
+                        }
                     }
                 }
+
 
                 blockCount++;
             }
 
-            if ((namedFiles > 0) && namedFiles != namedCount)
-                throw new Exception("Didn't read correct amount of named files! Read " + namedCount + " but expected " + namedFiles);
-
-            if ((totalFiles > 0) && totalFiles != (namedCount + unnamedCount))
-                throw new Exception("Didn't read correct amount of total files! Read " + (namedCount + unnamedCount) + " but expected " + totalFiles);
+            Console.WriteLine("Loaded " + entriesFDID.Count + "/" + totalFiles + " total files");
+            Console.WriteLine("Loaded " + namedCount + "/" + namedFiles + " named files");
         }
     }
 }
