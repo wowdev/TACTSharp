@@ -62,15 +62,16 @@ namespace TACTIndexTestCSharp
             eTimer.Stop();
             Console.WriteLine("Loaded root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
-            if (!File.Exists(Path.Combine(Settings.BaseDir, "indices", groupArchiveIndex[0] + ".index")))
+            var groupIndexPath = Path.Combine("cache", "tpr", "wow", "data", groupArchiveIndex[0] + ".index");
+
+            if (!File.Exists(groupIndexPath))
             {
-                // TODO: Make it? 
-                throw new Exception("Group archive index not found");
+                throw new NotImplementedException("Group archive creation is NYI");
             }
 
             var gaSW = new Stopwatch();
             gaSW.Start();
-            var groupIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "indices", groupArchiveIndex[0] + ".index"));
+            var groupIndex = new IndexInstance(groupIndexPath);
             gaSW.Stop();
             Console.WriteLine("Loaded group index in " + gaSW.Elapsed.TotalMilliseconds + "ms");
 
