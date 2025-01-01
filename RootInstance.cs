@@ -7,9 +7,9 @@ namespace TACTIndexTestCSharp
     // THIS IS MOSTLY YOINKED FROM BUILDBACKUP, REMAKE AT SOME POINT
     public class RootInstance
     {
-        private MemoryMappedFile rootFile;
-        private MemoryMappedViewAccessor accessor;
-        private SafeMemoryMappedViewHandle mmapViewHandle;
+        private readonly MemoryMappedFile rootFile;
+        private readonly MemoryMappedViewAccessor accessor;
+        private readonly SafeMemoryMappedViewHandle mmapViewHandle;
 
         private readonly Dictionary<ulong, RootEntry> entriesLookup = [];
         private readonly Dictionary<uint, RootEntry> entriesFDID = [];

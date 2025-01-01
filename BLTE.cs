@@ -1,10 +1,12 @@
-﻿using System.IO.Compression;
+﻿using System.Buffers.Binary;
+using System.IO.Compression;
+using System.Security.Cryptography;
 
 namespace TACTIndexTestCSharp
 {
     public static class BLTE
     {
-        public unsafe static byte[] Decode(ReadOnlySpan<byte> data, ulong totalDecompSize = 0)
+        public static byte[] Decode(ReadOnlySpan<byte> data, ulong totalDecompSize = 0)
         {
             var fixedHeaderSize = 8;
 
@@ -57,38 +59,101 @@ namespace TACTIndexTestCSharp
                 var checkSum = data.Slice(infoOffset, 16);
                 infoOffset += 16;
 
-                var compData = data.Slice(compOffset + 1, compSize - 1);
-
-                switch ((char)data[compOffset])
-                {
-                    case 'N':
-                        compData.CopyTo(decompData.AsSpan(decompOffset));
-                        break;
-
-                    case 'Z':
-                        fixed (byte* compRaw = compData)
-                            using (var stream = new UnmanagedMemoryStream(compRaw, compData.Length))
-                            using (var zlibStream = new ZLibStream(stream, CompressionMode.Decompress))
-                                zlibStream.ReadExactly(decompData, decompOffset, decompSize);
-                        break;
-
-                    case 'F':
-                        throw new NotImplementedException("Frame decompression not implemented");
-
-                    case 'E':
-                        var empty = new byte[decompSize];
-                        empty.CopyTo(decompData.AsSpan(decompOffset));
-                        break;
-
-                    default:
-                        throw new Exception("Invalid BLTE chunk mode: " + (char)data[compOffset]);
-                }
+                HandleDataBlock((char)data[compOffset], data.Slice(compOffset + 1, compSize - 1), i, compSize, decompSize, compOffset, decompOffset, decompData);
 
                 compOffset += compSize;
                 decompOffset += decompSize;
             }
 
             return decompData;
+        }
+
+        private unsafe static void HandleDataBlock(char mode, ReadOnlySpan<byte> compData, int chunkIndex, int compSize, int decompSize, int compOffset, int decompOffset, byte[] decompData)
+        {
+            switch (mode)
+            {
+                case 'N':
+                    compData.CopyTo(decompData.AsSpan(decompOffset));
+                    break;
+
+                case 'Z':
+                    fixed (byte* compRaw = compData)
+                        using (var stream = new UnmanagedMemoryStream(compRaw, compData.Length))
+                        using (var zlibStream = new ZLibStream(stream, CompressionMode.Decompress))
+                            zlibStream.ReadExactly(decompData, decompOffset, decompSize);
+                    break;
+
+                case 'F':
+                    throw new NotImplementedException("Frame decompression not implemented");
+
+                case 'E':
+                    var decompSpan = decompData.AsSpan(decompOffset);
+                    try
+                    {
+                        var decryptedData = Decrypt(compData, chunkIndex);
+                        HandleDataBlock((char)decryptedData[0], decryptedData.AsSpan()[1..], chunkIndex, compSize, decompSize, compOffset, decompOffset, decompData);
+                    }
+                    catch (KeyNotFoundException e)
+                    {
+                        Console.WriteLine(e.Message);
+                        var empty = new byte[decompSize];
+                        empty.CopyTo(decompSpan);
+                    }
+
+                    break;
+
+                default:
+                    throw new Exception("Invalid BLTE chunk mode: " + (char)mode);
+            }
+        }
+
+        private static byte[] Decrypt(ReadOnlySpan<byte> data, int chunkIndex)
+        {
+            byte keyNameSize = data[0];
+
+            if (keyNameSize == 0 || keyNameSize != 8)
+                throw new Exception("keyNameSize == 0 || keyNameSize != 8");
+
+            ulong keyName = BinaryPrimitives.ReadUInt64LittleEndian(data[1..]);
+
+            byte IVSize = data[keyNameSize + 1];
+
+            if (IVSize != 4 || IVSize > 0x10)
+                throw new Exception("IVSize != 4 || IVSize > 0x10");
+
+            byte[] IV = data.Slice(keyNameSize + 2, IVSize).ToArray();
+            // expand to 8 bytes
+            Array.Resize(ref IV, 8);
+
+            if (data.Length < keyNameSize + IVSize + 4)
+                throw new Exception("data.Length < IVSize + keyNameSize + 4");
+
+            int dataOffset = keyNameSize + IVSize + 2;
+
+            var encType = (char)data[keyNameSize + 2 + IVSize];
+
+            if (encType != 'S' && encType != 'A')
+                throw new Exception("unhandled encryption type: " + encType);
+
+            // magic
+            for (int shift = 0, i = 0; i < sizeof(int); shift += 8, i++)
+            {
+                IV[i] ^= (byte)((chunkIndex >> shift) & 0xFF);
+            }
+
+            if (!KeyService.TryGetKey(keyName, out var key))
+                throw new KeyNotFoundException("Unknown keyname " + keyName.ToString("X16"));
+
+            if (encType == 'S')
+            {
+                ICryptoTransform decryptor = KeyService.SalsaInstance.CreateDecryptor(key, IV);
+
+                return decryptor.TransformFinalBlock(data[1..].ToArray(), dataOffset, data.Length - 1 - dataOffset);
+            }
+            else
+            {
+                throw new Exception("encType arc4 not implemented");
+            }
         }
     }
 }
