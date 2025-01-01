@@ -230,8 +230,8 @@ namespace TACTIndexTestCSharp
                             entries[i].lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offset, 8));
                             offset += 8;
 
-                            entriesLookup.Add(entries[i].lookup, entries[i]);
-                            entriesFDID.Add(entries[i].fileDataID, entries[i]);
+                            entriesLookup.TryAdd(entries[i].lookup, entries[i]);
+                            entriesFDID.TryAdd(entries[i].fileDataID, entries[i]);
                         }
                     }
                     else
