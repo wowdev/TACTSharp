@@ -6,12 +6,31 @@ namespace TACTIndexTestCSharp
     {
         static async Task Main(string[] args)
         {
-            var buildConfig = new Config("D:\\Projects\\wow.tools.local\\fakebuildconfig");
+            if(args.Length != 2)
+            {
+                Console.WriteLine("Usage: TACTIndexTestCSharp <buildconfig(path)> <cdnconfig(path)>");
+                return;
+            }
+
+            Config buildConfig;
+            if(File.Exists(args[0]))
+                buildConfig = new Config(args[0], true);
+            else if (args[0].Length == 32 && args[0].All(c => "0123456789abcdef".Contains(c)))
+                buildConfig = new Config(args[0], false);
+            else
+                throw new Exception("Invalid buildconfig(path)");
+
+            Config cdnConfig;
+            if (File.Exists(args[1]))
+                cdnConfig = new Config(args[1], true);
+            else if (args[1].Length == 32 && args[1].All(c => "0123456789abcdef".Contains(c)))
+                cdnConfig = new Config(args[1], false);
+            else
+                throw new Exception("Invalid buildconfig(path)");
 
             if (!buildConfig.Values.TryGetValue("encoding", out var encodingKey))
                 throw new Exception("No encoding key found in build config");
 
-            var cdnConfig = new Config(Path.Combine(Settings.BaseDir, "config", "cd", "18", "cd18191b8928c33bf24b962e9330460f"));
             if (!cdnConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
                 throw new Exception("No archive group found in cdn config");
 
