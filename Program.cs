@@ -29,7 +29,7 @@ namespace TACTIndexTestCSharp
             eTimer.Start();
             var encodingPath = Path.Combine("cache", "tpr", "wow", "data", encodingKey[1] + ".decoded");
             if(!File.Exists(encodingPath))
-                await File.WriteAllBytesAsync(encodingPath, await CDN.GetFile("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][0]), ulong.Parse(buildConfig.Values["encoding-size"][1]), true));
+                await File.WriteAllBytesAsync(encodingPath, await CDN.GetFile("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][1]), ulong.Parse(buildConfig.Values["encoding-size"][0]), true));
 
             eTimer.Stop();
             Console.WriteLine("Retrieved encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
@@ -53,7 +53,7 @@ namespace TACTIndexTestCSharp
             eTimer.Restart();
             var rootPath = Path.Combine("cache", "tpr", "wow", "data", rootEKey + ".decoded"); 
             if(!File.Exists(rootPath))
-                await File.WriteAllBytesAsync(rootPath, await CDN.GetFile("wow", "data", rootEKey, rootEKeys.Value.decodedFileSize, 0, true));
+                await File.WriteAllBytesAsync(rootPath, await CDN.GetFile("wow", "data", rootEKey, 0, rootEKeys.Value.decodedFileSize, true));
             eTimer.Stop();
             Console.WriteLine("Retrieved root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
@@ -100,7 +100,7 @@ namespace TACTIndexTestCSharp
                 var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(fileEKeys.Value.eKeys[0]);
                 byte[] fileBytes;
                 if (offset == -1)
-                    fileBytes = await CDN.GetFile("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), fileEKeys.Value.decodedFileSize, 0, true);
+                    fileBytes = await CDN.GetFile("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), 0, fileEKeys.Value.decodedFileSize, true);
                 else
                     fileBytes = await CDN.GetFileFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true);
 

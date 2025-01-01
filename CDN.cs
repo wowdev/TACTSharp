@@ -71,7 +71,7 @@
             return data;
         }
 
-        public static async Task<byte[]> GetFile(string tprDir, string type, string hash, ulong decompressedSize, ulong compressedSize, bool decoded = false)
+        public static async Task<byte[]> GetFile(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false)
         {
             var data = await DownloadFile(tprDir, type, hash, compressedSize);
             if (!decoded)
@@ -80,7 +80,7 @@
                 return BLTE.Decode(data, decompressedSize);
         }
 
-        public static async Task<byte[]> GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize, bool decoded = false)
+        public static async Task<byte[]> GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize = 0, bool decoded = false)
         {
             var data = await DownloadFileFromArchive(eKey, tprDir, archive, offset, length);
             if (!decoded)
