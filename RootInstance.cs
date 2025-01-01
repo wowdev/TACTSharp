@@ -11,8 +11,8 @@ namespace TACTIndexTestCSharp
         private MemoryMappedViewAccessor accessor;
         private SafeMemoryMappedViewHandle mmapViewHandle;
 
-        private static readonly Dictionary<ulong, RootEntry> entriesLookup = [];
-        private static readonly Dictionary<uint, RootEntry> entriesFDID = [];
+        private readonly Dictionary<ulong, RootEntry> entriesLookup = [];
+        private readonly Dictionary<uint, RootEntry> entriesFDID = [];
 
         [Flags]
         public enum LocaleFlags : uint

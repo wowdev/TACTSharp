@@ -145,12 +145,9 @@ namespace TACTIndexTestCSharp
                 }
                 else
                 {
-                    var startoffs = offs;
                     offs += 5; //+size
                     offs += header.hashSizeCKey; // +ckey
                     offs += header.hashSizeEKey * eKeyCount; // +ekeys
-
-                    //Console.WriteLine("Going forward by " + (offs - startoffs) + " bytes (@ " + offs);
                 }
             }
 

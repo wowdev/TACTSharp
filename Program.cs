@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace TACTIndexTestCSharp
 {
@@ -8,10 +7,8 @@ namespace TACTIndexTestCSharp
         static async Task Main(string[] args)
         {
             var buildConfig = new Config("D:\\Projects\\wow.tools.local\\fakebuildconfig");
-            if(!buildConfig.Values.TryGetValue("build-name", out var buildName))
-                throw new Exception("No build name found in build config");
 
-            if(!buildConfig.Values.TryGetValue("encoding", out var encodingKey))
+            if (!buildConfig.Values.TryGetValue("encoding", out var encodingKey))
                 throw new Exception("No encoding key found in build config");
 
             var cdnConfig = new Config(Path.Combine(Settings.BaseDir, "config", "cd", "18", "cd18191b8928c33bf24b962e9330460f"));
@@ -35,11 +32,11 @@ namespace TACTIndexTestCSharp
             eTimer.Stop();
             Console.WriteLine("Loaded encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
-            if(!buildConfig.Values.TryGetValue("root", out var rootKey))
+            if (!buildConfig.Values.TryGetValue("root", out var rootKey))
                 throw new Exception("No root key found in build config");
 
             string rootEKey;
-            if(rootKey.Length == 1)
+            if (rootKey.Length == 1)
             {
                 var root = Convert.FromHexString(rootKey[0]);
                 eTimer.Restart();
@@ -76,127 +73,51 @@ namespace TACTIndexTestCSharp
             gaSW.Stop();
             Console.WriteLine("Loaded group index in " + gaSW.Elapsed.TotalMilliseconds + "ms");
 
-            var xyzm2 = rootInstance.GetEntryByFDID(189077) ?? throw new Exception("xyz.m2 not found in root");
+            if (!Directory.Exists("output"))
+                Directory.CreateDirectory("output");
 
-            eTimer.Restart();
-            if (!encoding.TryGetEKeys(xyzm2.md5, out var xyzEKeys) || xyzEKeys == null)
-                throw new Exception("EKey not found in encoding");
-            eTimer.Stop();
-            Console.WriteLine("EKey lookup in encoding took " + eTimer.Elapsed.TotalMilliseconds + "ms");
-
-            eTimer.Restart();
-            var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(xyzEKeys.Value.eKeys[0]);
- 
-            eTimer.Stop();
-            Console.WriteLine("EKey lookup in group index took " + eTimer.Elapsed.TotalMilliseconds + "ms");
-
-            if (offset == -1)
-                throw new Exception("EKey not found in group index");
-
-            var targetArchive = cdnConfig.Values["archives"][archiveIndex];
-            Console.WriteLine("File found in archive " + targetArchive + " at offset " + offset + ", " + size + " bytes");
-
-            eTimer.Restart();
-            var xyzPath = await CDN.GetFilePathFromArchive(Convert.ToHexStringLower(xyzEKeys.Value.eKeys[0]), "wow", targetArchive, offset, size, true);
-            eTimer.Stop();
-            Console.WriteLine("Retrieved xyz.m2 in " + eTimer.Elapsed.TotalMilliseconds + "ms");
-
-            Console.WriteLine("Available at " + xyzPath);
-            totalTimer.Stop();
-            Console.WriteLine("Total time: " + totalTimer.Elapsed.TotalMilliseconds + "ms");
-
-            return;
-
-            //archiveSW.Start();
-            //for (var i = 0; i < archives.Count; i++)
-            //{
-            //    var archive = archives[i];
-            //    if (File.Exists(Path.Combine(baseDir, "indices", archive + ".index")))
-            //    {
-            //        indices.Add(new IndexInstance(Path.Combine(baseDir, "indices", archive + ".index"), (short)i));
-            //    }
-            //}
-            //archiveSW.Stop();
-            //Console.WriteLine("Loaded " + indices.Count + " indices in " + archiveSW.Elapsed.TotalMilliseconds + "ms");
-            //var ramDiffAfterLoose = Process.GetCurrentProcess().WorkingSet64 - ramAfterGroupIndex;
-            //Console.WriteLine("RAM usage difference loose indices: " + ramDiffAfterLoose / 1024 / 1024 + "MB");
-
-            //var oldIndexSW = new Stopwatch();
-            //oldIndexSW.Start();
-            //GetIndexes(baseDir, archives.ToArray());
-            //oldIndexSW.Stop();
-            //Console.WriteLine("Loaded " + indexDictionary.Count + " indices in " + oldIndexSW.Elapsed.TotalMilliseconds + "ms");
-            //var ramDiffAfterOld = Process.GetCurrentProcess().WorkingSet64 - ramAfterGroupIndex - ramAfterGroupIndex;
-            //Console.WriteLine("RAM usage difference old indices: " + ramDiffAfterOld / 1024 / 1024 + "MB");
-
-            var checkedKeys = 0;
-            var looseFaster = 0;
-            var groupFaster = 0;
-
-            var eKeysToCheck = new List<string>();
-
-            foreach (var line in File.ReadAllLines("C:\\Users\\ictma\\Downloads\\11.1.encodingdump")) // https://old.wow.tools/pub/11.1.encodingdump
+            var extractionTargets = new List<(uint fileDataID, string fileName)>();
+            foreach (var line in File.ReadAllLines("extract.txt"))
             {
-                var parts = line.Split(' ');
-
-                if (parts[0] == "ENCODINGESPEC")
+                var parts = line.Split(';');
+                if (parts.Length != 2)
                     continue;
 
-                eKeysToCheck.Add(parts[1].Trim());
+                extractionTargets.Add((uint.Parse(parts[0]), parts[1]));
             }
 
-            gaSW.Restart();
-            foreach (var eKey in eKeysToCheck) {
-                var eKeyTarget = Convert.FromHexString(eKey);
+            eTimer.Restart();
+            foreach (var (fileDataID, fileName) in extractionTargets)
+            {
+                var fileEntry = rootInstance.GetEntryByFDID(fileDataID) ?? throw new Exception("File not found in root");
 
-                var gaFound = false;
+                if (!encoding.TryGetEKeys(fileEntry.md5, out var fileEKeys) || fileEKeys == null)
+                    throw new Exception("EKey not found in encoding");
 
-                gaSW.Restart();
-                var (gaOffset, gaSize, gaArchiveIndex) = groupIndex.GetIndexInfo(eKeyTarget.AsSpan());
-                gaSW.Stop();
-
-                if (gaOffset != -1)
+                var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(fileEKeys.Value.eKeys[0]);
+                string filePath;
+                if (offset == -1)
                 {
-                    //Console.WriteLine("Group (" + gaOffset + ", " + gaSize + ", " + gaArchiveIndex + " lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
-                    gaFound = true;
+                    // File is unarchived
+                    filePath = await CDN.GetFilePath("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), true);
+                }
+                else
+                {
+                    // File is archived
+                    filePath = await CDN.GetFilePathFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, true);
                 }
 
-                var looseFound = false;
+                if (!Directory.Exists(Path.Combine("output", Path.GetDirectoryName(fileName))))
+                    Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)));
 
-                //archiveSW.Restart();
-                //Parallel.ForEach(indices, index =>
-                //{
-                //    if (looseFound)
-                //        return;
-
-                //    var (offset, size, archiveIndex) = index.GetIndexInfo(eKeyTarget.AsSpan());
-                //    if (offset != -1)
-                //    {
-                //        archiveSW.Stop();
-                //        looseFound = true;
-                //       // Console.WriteLine("Loose (" + offset + ", " + size + ", " + archiveIndex + " lookup took " + archiveSW.Elapsed.TotalMilliseconds + "ms");
-                //    }
-                //});
-
-                if(looseFound && !gaFound)
-                    Console.WriteLine("Loose found " + eKey + " but group didn't");
-                else if (gaFound && !looseFound)
-                    Console.WriteLine("Group found " + eKey + " but loose didn't");
-
-                //if (gaSW.Elapsed.TotalMilliseconds > archiveSW.Elapsed.TotalMilliseconds)
-                //    looseFaster++;
-                //else
-                //    groupFaster++;
-
-                checkedKeys++;
-
-                if (checkedKeys % 1000 == 0)
-                {
-                    Console.WriteLine("Checked " + checkedKeys + " keys");
-                }
+                File.Copy(filePath, Path.Combine("output", fileName), true);
             }
-            gaSW.Stop();
-            Console.WriteLine("Group lookup took " + gaSW.Elapsed.TotalMilliseconds + "ms");
+            eTimer.Stop();
+
+            Console.WriteLine("Extracted " + extractionTargets.Count + " files in " + eTimer.Elapsed.TotalMilliseconds + "ms (average of " + Math.Round(eTimer.Elapsed.TotalMilliseconds / extractionTargets.Count,5) + "ms per file)");
+
+            totalTimer.Stop();
+            Console.WriteLine("Total time: " + totalTimer.Elapsed.TotalMilliseconds + "ms");
         }
     }
 }
