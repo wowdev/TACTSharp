@@ -105,9 +105,14 @@ namespace TACTIndexTestCSharp
 
             foreach (var (fileDataID, fileName) in extractionTargets)
             {
-                var fileEntry = rootInstance.GetEntryByFDID(fileDataID) ?? throw new FileNotFoundException("File " + fileDataID + " (" + fileName + ") not found in root");
+                var fileEntry = rootInstance.GetEntryByFDID(fileDataID);
+                if (fileEntry == null)
+                {
+                    Console.WriteLine("FileDataID " + fileDataID + " not found in root, skipping extraction..");
+                    continue;
+                }
 
-                if (!encoding.TryGetEKeys(fileEntry.md5, out var fileEKeys) || fileEKeys == null)
+                if (!encoding.TryGetEKeys(fileEntry.Value.md5, out var fileEKeys) || fileEKeys == null)
                     throw new Exception("EKey not found in encoding");
 
                 var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(fileEKeys.Value.eKeys[0]);
