@@ -39,7 +39,7 @@
 
         private static async Task<byte[]> DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size)
         {
-            var cachePath = Path.Combine("cache", tprDir, "wow", eKey);
+            var cachePath = Path.Combine("cache", tprDir, "data", eKey);
             if (File.Exists(cachePath))
             {
                 if (new FileInfo(cachePath).Length == size)
