@@ -9,6 +9,8 @@ namespace TACTIndexTestCSharp
             if(args.Length != 2)
             {
                 Console.WriteLine("Usage: TACTIndexTestCSharp <buildconfig(path)> <cdnconfig(path)>");
+                Console.WriteLine("Press enter to exit.");
+                Console.ReadLine();
                 return;
             }
 
