@@ -4,12 +4,45 @@
     {
         private static readonly HttpClient Client = new();
 
-        private static readonly List<string> CDNServers = ["archive.wow.tools"];
+        private static readonly List<string> CDNServers = [];
 
         static CDN()
         {
             if (!Directory.Exists("cache"))
                 Directory.CreateDirectory("cache");
+
+            var cdnsFile = Client.GetStringAsync("http://us.patch.battle.net:1119/wow/cdns").Result;
+
+            foreach (var line in cdnsFile.Split('\n'))
+            {
+                if (line.Length == 0)
+                    continue;
+                
+                if(!line.StartsWith("us|"))
+                    continue;
+
+                var splitLine = line.Split('|');
+                if (splitLine.Length < 2)
+                    continue;
+
+                CDNServers.AddRange(splitLine[2].Trim().Split(' '));
+            }
+
+            CDNServers.Add("archive.wow.tools");
+
+            var pingTasks = new List<Task<(string server, long ping)>>();
+            foreach (var server in CDNServers)
+            {
+                pingTasks.Add(Task.Run(() =>
+                {
+                    var ping = new System.Net.NetworkInformation.Ping().Send(server).RoundtripTime;
+                    return (server, ping);
+                }));
+            }
+
+            var pings = Task.WhenAll(pingTasks).Result;
+
+            CDNServers = pings.OrderBy(p => p.ping).Select(p => p.server).ToList();
         }
 
         private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0)
