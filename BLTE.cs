@@ -4,98 +4,91 @@ namespace TACTIndexTestCSharp
 {
     public static class BLTE
     {
-        public static byte[] Decode(ReadOnlySpan<byte> data)
+        public unsafe static byte[] Decode(ReadOnlySpan<byte> data, ulong totalDecompSize = 0)
         {
+            var fixedHeaderSize = 8;
+
             if (data[0] != 0x42 || data[1] != 0x4C || data[2] != 0x54 || data[3] != 0x45)
                 throw new Exception("Invalid BLTE header");
 
-
             var headerSize = (uint)((data[4] << 24) | (data[5] << 16) | (data[6] << 8) | data[7]);
 
-            BLTEChunkInfo[] chunkInfos;
+            var offset = fixedHeaderSize;
 
-            if (headerSize > 0)
+            if (headerSize == 0)
             {
-                var flags = data[8];
-                var chunkCount = (uint)((data[9] << 16) | (data[10] << 8) | data[11]);
+                if ((char)data[offset] != 'N')
+                    throw new NotImplementedException("Single-chunk BLTE, but data is not N!?");
+                offset += 1;
 
-                chunkInfos = new BLTEChunkInfo[chunkCount];
+                return data[offset..].ToArray();
+            }
 
-                var offset = 12;
+            var flags = data[offset];
+            offset += 1;
+            var chunkCount = (uint)((data[offset + 0] << 16) | (data[offset + 1] << 8) | (data[offset + 2] << 0));
+            offset += 3;
+
+            int infoOffset = offset;
+
+            if (totalDecompSize == 0)
+            {
                 for (var i = 0; i < chunkCount; i++)
                 {
-                    chunkInfos[i].isFullChunk = true;
-                    chunkInfos[i].compSize = (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
-                    offset += 4;
-                    chunkInfos[i].decompSize = (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
-                    offset += 4;
-
-                    chunkInfos[i].checkSum = new byte[16];
-                    data.Slice(offset, 16).CopyTo(chunkInfos[i].checkSum);
-                    offset += 16;
+                    infoOffset += 4;
+                    totalDecompSize += (ulong)((data[infoOffset + 0] << 24) | (data[infoOffset + 1] << 16) | (data[infoOffset + 2] << 8) | (data[infoOffset + 3] << 0));
+                    infoOffset += 20;
                 }
 
-                if(offset != headerSize)
-                    throw new Exception("Incomplete BLTE header read");
-            }
-            else
-            {
-                chunkInfos = new BLTEChunkInfo[1];
-                chunkInfos[0].isFullChunk = false;
-                chunkInfos[0].compSize = data.Length - 8;
-                chunkInfos[0].decompSize = data.Length - 8 - 1;
-                chunkInfos[0].checkSum = new byte[16];
+                infoOffset = offset;
             }
 
+            var decompData = new byte[totalDecompSize];
+            int compOffset = (int)headerSize;
+            int decompOffset = 0;
 
-            var decompData = new byte[chunkInfos.Sum(x => x.decompSize)];
-
-            for(var i = 0; i < chunkInfos.Length; i++)
+            for (var i = 0; i < chunkCount; i++)
             {
-                long offset = headerSize + chunkInfos.Where((x, index) => index < i).Sum(x => x.compSize);
-                var mode = (char)data[(int)offset];
-                offset++;
+                var compSize = (data[infoOffset + 0] << 24) | (data[infoOffset + 1] << 16) | (data[infoOffset + 2] << 8) | (data[infoOffset + 3] << 0);
+                infoOffset += 4;
+                var decompSize = (data[infoOffset + 0] << 24) | (data[infoOffset + 1] << 16) | (data[infoOffset + 2] << 8) | (data[infoOffset + 3] << 0);
+                infoOffset += 4;
 
-                var chunk = chunkInfos[i];
+                var checkSum = data.Slice(infoOffset, 16);
+                infoOffset += 16;
 
-                switch (mode)
+                var compData = data.Slice(compOffset + 1, compSize - 1);
+
+                switch ((char)data[compOffset])
                 {
                     case 'N':
-                        var compData = data.Slice((int)offset, chunk.compSize);
-
-                        compData.CopyTo(decompData.AsSpan(chunkInfos.Where((x, index) => index < i).Sum(x => x.decompSize)));
-                        offset += chunk.compSize;
-
+                        compData.CopyTo(decompData.AsSpan(decompOffset));
                         break;
+
                     case 'Z':
-                        var startOffset = (int)headerSize + chunkInfos.Where((x, index) => index < i).Sum(x => x.compSize) + 1;
-
-                        using (var stream = new MemoryStream(data.Slice(startOffset, chunk.compSize - 1).ToArray()))
-                        using (var zlibStream = new ZLibStream(stream, CompressionMode.Decompress))
-                        {
-                            zlibStream.ReadExactly(decompData, chunkInfos.Where((x, index) => index < i).Sum(x => x.decompSize), chunk.decompSize);
-                        }
+                        fixed (byte* compRaw = compData)
+                            using (var stream = new UnmanagedMemoryStream(compRaw, compData.Length))
+                            using (var zlibStream = new ZLibStream(stream, CompressionMode.Decompress))
+                                zlibStream.ReadExactly(decompData, decompOffset, decompSize);
                         break;
+
                     case 'F':
                         throw new NotImplementedException("Frame decompression not implemented");
+
                     case 'E':
-                        var empty = new byte[chunk.decompSize];
-                        empty.CopyTo(decompData.AsSpan(chunkInfos.Where((x, index) => index < i).Sum(x => x.decompSize)));
-                        Console.WriteLine("Encountered encrypted chunk, skipping");
+                        var empty = new byte[decompSize];
+                        empty.CopyTo(decompData.AsSpan(decompOffset));
                         break;
+
                     default:
-                        throw new Exception("Invalid BLTE chunk mode: " + mode);
+                        throw new Exception("Invalid BLTE chunk mode: " + (char)data[compOffset]);
                 }
+
+                compOffset += compSize;
+                decompOffset += decompSize;
             }
 
             return decompData;
-        }
-        private struct BLTEChunkInfo
-        {
-            public bool isFullChunk;
-            public int compSize;
-            public int decompSize;
-            public byte[] checkSum;
         }
     }
 }
