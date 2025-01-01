@@ -79,7 +79,10 @@ namespace TACTIndexTestCSharp
                     case 'F':
                         throw new NotImplementedException("Frame decompression not implemented");
                     case 'E':
-                        throw new NotImplementedException("Encryption not implemented");
+                        var empty = new byte[chunk.decompSize];
+                        empty.CopyTo(decompData.AsSpan(chunkInfos.Where((x, index) => index < i).Sum(x => x.decompSize)));
+                        Console.WriteLine("Encountered encrypted chunk, skipping");
+                        break;
                     default:
                         throw new Exception("Invalid BLTE chunk mode: " + mode);
                 }
