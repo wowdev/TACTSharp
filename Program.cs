@@ -21,9 +21,16 @@ namespace TACTIndexTestCSharp
 
             var totalTimer = new Stopwatch();
             totalTimer.Start();
+
+            if(!Directory.Exists(Path.Combine("cache", "tpr", "wow", "data")))
+                Directory.CreateDirectory(Path.Combine("cache", "tpr", "wow", "data"));
+
             var eTimer = new Stopwatch();
             eTimer.Start();
-            var encodingPath = await CDN.GetFilePath("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][0]), ulong.Parse(buildConfig.Values["encoding-size"][1]), true);
+            var encodingPath = Path.Combine("cache", "tpr", "wow", "data", encodingKey[1] + ".decoded");
+            if(!File.Exists(encodingPath))
+                await File.WriteAllBytesAsync(encodingPath, await CDN.GetFile("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][0]), ulong.Parse(buildConfig.Values["encoding-size"][1]), true));
+
             eTimer.Stop();
             Console.WriteLine("Retrieved encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
@@ -44,7 +51,9 @@ namespace TACTIndexTestCSharp
             var rootEKey = Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]);
 
             eTimer.Restart();
-            var rootPath = await CDN.GetFilePath("wow", "data", rootEKey, rootEKeys.Value.decodedFileSize, 0, true);
+            var rootPath = Path.Combine("cache", "tpr", "wow", "data", rootEKey + ".decoded"); 
+            if(!File.Exists(rootPath))
+                await File.WriteAllBytesAsync(rootPath, await CDN.GetFile("wow", "data", rootEKey, rootEKeys.Value.decodedFileSize, 0, true));
             eTimer.Stop();
             Console.WriteLine("Retrieved root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
@@ -88,16 +97,16 @@ namespace TACTIndexTestCSharp
                     throw new Exception("EKey not found in encoding");
 
                 var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(fileEKeys.Value.eKeys[0]);
-                string filePath;
+                byte[] fileBytes;
                 if (offset == -1)
-                    filePath = await CDN.GetFilePath("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), fileEKeys.Value.decodedFileSize, 0, true);
+                    fileBytes = await CDN.GetFile("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), fileEKeys.Value.decodedFileSize, 0, true);
                 else
-                    filePath = await CDN.GetFilePathFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true);
+                    fileBytes = await CDN.GetFileFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true);
 
                 if (!Directory.Exists(Path.Combine("output", Path.GetDirectoryName(fileName)!)))
                     Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)!));
 
-                File.Copy(filePath, Path.Combine("output", fileName), true);
+                await File.WriteAllBytesAsync(Path.Combine("output", fileName), fileBytes);
             }
 
             eTimer.Stop();

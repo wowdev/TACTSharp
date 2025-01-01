@@ -95,7 +95,7 @@ namespace TACTIndexTestCSharp
                     }
                     catch (KeyNotFoundException e)
                     {
-                        Console.WriteLine(e.Message);
+                        //Console.WriteLine(e.Message);
                         var empty = new byte[decompSize];
                         empty.CopyTo(decompSpan);
                     }

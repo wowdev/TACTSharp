@@ -71,51 +71,22 @@
             return data;
         }
 
-        public static async Task<string> GetFilePath(string tprDir, string type, string hash, ulong decompressedSize, ulong compressedSize, bool decoded = false)
+        public static async Task<byte[]> GetFile(string tprDir, string type, string hash, ulong decompressedSize, ulong compressedSize, bool decoded = false)
         {
-            var decodedPath = Path.Combine("cache", tprDir, type, hash + ".decoded");
-            if (decoded && File.Exists(decodedPath))
-            {
-                var currentDecompLength = (ulong)new FileInfo(decodedPath).Length;
-                if (currentDecompLength == decompressedSize)
-                    return decodedPath;
-            }
-
             var data = await DownloadFile(tprDir, type, hash, compressedSize);
             if (!decoded)
-            {
-                return Path.Combine("cache", tprDir, type, hash);
-            }
+                return data;
             else
-            {
-                var decodedData = BLTE.Decode(data, decompressedSize);
-                Directory.CreateDirectory(Path.Combine("cache", tprDir, type));
-                await File.WriteAllBytesAsync(decodedPath, decodedData);
-                return decodedPath;
-            }
+                return BLTE.Decode(data, decompressedSize);
         }
-        public static async Task<string> GetFilePathFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize, bool decoded = false)
-        {
-            var decodedPath = Path.Combine("cache", tprDir, "data", eKey + ".decoded");
-            if (decoded && File.Exists(decodedPath))
-            {
-                var currentDecompLength = (ulong)new FileInfo(decodedPath).Length;
-                if (currentDecompLength == decompressedSize)
-                    return decodedPath;
-            }
 
+        public static async Task<byte[]> GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize, bool decoded = false)
+        {
             var data = await DownloadFileFromArchive(eKey, tprDir, archive, offset, length);
             if (!decoded)
-            {
-                return Path.Combine("cache", tprDir, "data", eKey);
-            }
+                return data;
             else
-            {
-                var decodedData = BLTE.Decode(data, decompressedSize);
-                Directory.CreateDirectory(Path.Combine("cache", tprDir, "data"));
-                await File.WriteAllBytesAsync(decodedPath, decodedData);
-                return decodedPath;
-            }
+                return BLTE.Decode(data, decompressedSize);
         }
     }
 }
