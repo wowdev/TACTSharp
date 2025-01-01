@@ -41,12 +41,12 @@ namespace TACTIndexTestCSharp
             var totalTimer = new Stopwatch();
             totalTimer.Start();
 
-            if(!Directory.Exists(Path.Combine("cache", "tpr", "wow", "data")))
-                Directory.CreateDirectory(Path.Combine("cache", "tpr", "wow", "data"));
+            if(!Directory.Exists(Path.Combine("cache", "wow", "data")))
+                Directory.CreateDirectory(Path.Combine("cache", "wow", "data"));
 
             var eTimer = new Stopwatch();
             eTimer.Start();
-            var encodingPath = Path.Combine("cache", "tpr", "wow", "data", encodingKey[1] + ".decoded");
+            var encodingPath = Path.Combine("cache", "wow", "data", encodingKey[1] + ".decoded");
             if(!File.Exists(encodingPath))
                 await File.WriteAllBytesAsync(encodingPath, await CDN.GetFile("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][1]), ulong.Parse(buildConfig.Values["encoding-size"][0]), true));
 
@@ -70,7 +70,7 @@ namespace TACTIndexTestCSharp
             var rootEKey = Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]);
 
             eTimer.Restart();
-            var rootPath = Path.Combine("cache", "tpr", "wow", "data", rootEKey + ".decoded"); 
+            var rootPath = Path.Combine("cache", "wow", "data", rootEKey + ".decoded"); 
             if(!File.Exists(rootPath))
                 await File.WriteAllBytesAsync(rootPath, await CDN.GetFile("wow", "data", rootEKey, 0, rootEKeys.Value.decodedFileSize, true));
             eTimer.Stop();
