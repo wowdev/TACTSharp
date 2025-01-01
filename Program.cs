@@ -90,18 +90,12 @@ namespace TACTIndexTestCSharp
                 var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(fileEKeys.Value.eKeys[0]);
                 string filePath;
                 if (offset == -1)
-                {
-                    // File is unarchived
                     filePath = await CDN.GetFilePath("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), fileEKeys.Value.decodedFileSize, 0, true);
-                }
                 else
-                {
-                    // File is archived
                     filePath = await CDN.GetFilePathFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true);
-                }
 
-                if (!Directory.Exists(Path.Combine("output", Path.GetDirectoryName(fileName))))
-                    Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)));
+                if (!Directory.Exists(Path.Combine("output", Path.GetDirectoryName(fileName)!)))
+                    Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)!));
 
                 File.Copy(filePath, Path.Combine("output", fileName), true);
             }
