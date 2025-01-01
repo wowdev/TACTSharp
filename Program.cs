@@ -34,10 +34,6 @@ namespace TACTIndexTestCSharp
             if (!cdnConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
                 throw new Exception("No archive group found in cdn config");
 
-            var archives = new List<string>();
-            if (cdnConfig.Values.TryGetValue("archives", out var archiveList))
-                archives.AddRange(archiveList);
-
             var totalTimer = new Stopwatch();
             totalTimer.Start();
 
@@ -81,12 +77,10 @@ namespace TACTIndexTestCSharp
             eTimer.Stop();
             Console.WriteLine("Loaded root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
-            var groupIndexPath = Path.Combine("cache", "tpr", "wow", "data", groupArchiveIndex[0] + ".index");
+            var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
 
             if (!File.Exists(groupIndexPath))
-            {
-                throw new NotImplementedException("Group archive creation is NYI");
-            }
+                GroupIndex.Generate(groupArchiveIndex[0], cdnConfig.Values["archives"]);
 
             var gaSW = new Stopwatch();
             gaSW.Start();

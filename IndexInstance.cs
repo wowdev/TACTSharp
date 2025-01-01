@@ -74,6 +74,39 @@ namespace TACTIndexTestCSharp
             return begin;
         }
 
+        public unsafe List<(byte[] eKey, int offset, int size)> GetAllEntries()
+        {
+            var entries = new List<(byte[] eKey, int offset, int size)>();
+
+            byte* fileData = null;
+            try
+            {
+                mmapViewHandle.AcquirePointer(ref fileData);
+                for (var i = 0; i < this.numBlocks; i++)
+                {
+                    byte* startOfBlock = fileData + (i * this.blockSizeBytes);
+                    var blockSpan = new ReadOnlySpan<byte>(startOfBlock, this.blockSizeBytes);
+                    for(var j = 0; j < this.entriesPerBlock; j++)
+                    {
+                        var entry = blockSpan.Slice(j * this.entrySize, this.entrySize);
+                        var eKey = entry[..footer.keyBytes].ToArray();
+                        var offset = entry.Slice(footer.keyBytes + footer.sizeBytes, footer.offsetBytes).ReadInt32BE();
+                        var size = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+
+                        if(size != 0)
+                            entries.Add((eKey, offset, size));
+                    }
+                }
+            }
+            finally
+            {
+                if (fileData != null)
+                    mmapViewHandle.ReleasePointer();
+            }
+
+            return entries;
+        }
+
         unsafe public (int offset, int size, int archiveIndex) GetIndexInfo(Span<byte> eKeyTarget)
         {
             byte* fileData = null;
