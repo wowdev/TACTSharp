@@ -6,33 +6,33 @@ namespace TACTIndexTestCSharp
     // mostly based on schlumpf's implementation, but with some changes because i dont know how to port some c++ things to c# properly
     public sealed class IndexInstance
     {
-        private long indexSize;
+        private readonly long indexSize;
         private IndexFooter footer;
-        private short archiveIndex = -1;
-        private bool isGroupArchive;
+        private readonly short archiveIndex = -1;
+        private readonly bool isGroupArchive;
 
-        private MemoryMappedFile indexFile;
-        private MemoryMappedViewAccessor accessor;
-        private SafeMemoryMappedViewHandle mmapViewHandle;
+        private readonly MemoryMappedFile indexFile;
+        private readonly MemoryMappedViewAccessor accessor;
+        private readonly SafeMemoryMappedViewHandle mmapViewHandle;
 
-        private int blockSizeBytes;
-        private int entrySize;
-        private int entriesPerBlock;
-        private int entriesInLastBlock;
-        private int numBlocks;
-        private int ofsStartOfToc;
-        private int ofsEndOfTocEkeys;
+        private readonly int blockSizeBytes;
+        private readonly int entrySize;
+        private readonly int entriesPerBlock;
+        private readonly int entriesInLastBlock;
+        private readonly int numBlocks;
+        private readonly int ofsStartOfToc;
+        private readonly int ofsEndOfTocEkeys;
 
         public IndexInstance(string path, short archiveIndex = -1)
         {
             this.archiveIndex = archiveIndex;
-            indexSize = new FileInfo(path).Length;
+            this.indexSize = new FileInfo(path).Length;
 
             this.indexFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             this.accessor = indexFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
             this.mmapViewHandle = accessor.SafeMemoryMappedViewHandle;
 
-            using (var accessor = this.indexFile.CreateViewAccessor(indexSize - 20, 20, MemoryMappedFileAccess.Read))
+            using (var accessor = this.indexFile.CreateViewAccessor(this.indexSize - 20, 20, MemoryMappedFileAccess.Read))
                 accessor.Read(0, out footer);
 
             isGroupArchive = footer.offsetBytes == 6;
@@ -49,7 +49,7 @@ namespace TACTIndexTestCSharp
 
         // Binary search pointing to the first element **not** comparing SequenceCompareTo < 0 anymore.
         // [1 3 4 6]: 0 -> 1; 1 -> 1; 2 -> 3; 3 -> 3; 4 -> 4; 5 -> 6; 6 -> 6; 7 -> end.
-        unsafe static private byte* lowerBoundEkey(byte* begin, byte* end, long dataSize, ReadOnlySpan<byte> needle)
+        unsafe static private byte* LowerBoundEkey(byte* begin, byte* end, long dataSize, ReadOnlySpan<byte> needle)
         {
             var count = (end - begin) / dataSize;
 
@@ -84,7 +84,7 @@ namespace TACTIndexTestCSharp
                 byte* startOfToc = fileData + this.ofsStartOfToc;
                 byte* endOfTocEkeys = fileData + this.ofsEndOfTocEkeys;
 
-                byte* lastEkey = lowerBoundEkey(startOfToc, endOfTocEkeys, footer.keyBytes, eKeyTarget);
+                byte* lastEkey = LowerBoundEkey(startOfToc, endOfTocEkeys, footer.keyBytes, eKeyTarget);
                 if (lastEkey == endOfTocEkeys)
                     return (-1, -1, -1);
 
@@ -97,7 +97,7 @@ namespace TACTIndexTestCSharp
                 byte* startOfCandidateBlock = fileData + ofsStartOfCandidateBlock;
                 byte* endOfCandidateBlock = fileData + ofsEndOfCandidateBlock;
 
-                byte* candidate = lowerBoundEkey(startOfCandidateBlock, endOfCandidateBlock, this.entrySize, eKeyTarget);
+                byte* candidate = LowerBoundEkey(startOfCandidateBlock, endOfCandidateBlock, this.entrySize, eKeyTarget);
 
                 if (candidate == endOfCandidateBlock)
                     return (-1, -1, -1);

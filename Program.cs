@@ -23,7 +23,7 @@ namespace TACTIndexTestCSharp
             totalTimer.Start();
             var eTimer = new Stopwatch();
             eTimer.Start();
-            var encodingPath = await CDN.GetFilePath("wow", "data", encodingKey[1], true);
+            var encodingPath = await CDN.GetFilePath("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][0]), ulong.Parse(buildConfig.Values["encoding-size"][1]), true);
             eTimer.Stop();
             Console.WriteLine("Retrieved encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
@@ -35,24 +35,16 @@ namespace TACTIndexTestCSharp
             if (!buildConfig.Values.TryGetValue("root", out var rootKey))
                 throw new Exception("No root key found in build config");
 
-            string rootEKey;
-            if (rootKey.Length == 1)
-            {
-                var root = Convert.FromHexString(rootKey[0]);
-                eTimer.Restart();
-                if (!encoding.TryGetEKeys(root, out var rootEKeys) || rootEKeys == null)
-                    throw new Exception("Root key not found in encoding");
-                eTimer.Stop();
+            var root = Convert.FromHexString(rootKey[0]);
+            eTimer.Restart();
+            if (!encoding.TryGetEKeys(root, out var rootEKeys) || rootEKeys == null)
+                throw new Exception("Root key not found in encoding");
+            eTimer.Stop();
 
-                rootEKey = Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]);
-            }
-            else
-            {
-                rootEKey = rootKey[1];
-            }
+            var rootEKey = Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]);
 
             eTimer.Restart();
-            var rootPath = await CDN.GetFilePath("wow", "data", rootEKey, true);
+            var rootPath = await CDN.GetFilePath("wow", "data", rootEKey, rootEKeys.Value.decodedFileSize, 0, true);
             eTimer.Stop();
             Console.WriteLine("Retrieved root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
@@ -87,9 +79,10 @@ namespace TACTIndexTestCSharp
             }
 
             eTimer.Restart();
+
             foreach (var (fileDataID, fileName) in extractionTargets)
             {
-                var fileEntry = rootInstance.GetEntryByFDID(fileDataID) ?? throw new Exception("File not found in root");
+                var fileEntry = rootInstance.GetEntryByFDID(fileDataID) ?? throw new FileNotFoundException("File " + fileDataID + " (" + fileName + ") not found in root");
 
                 if (!encoding.TryGetEKeys(fileEntry.md5, out var fileEKeys) || fileEKeys == null)
                     throw new Exception("EKey not found in encoding");
@@ -99,12 +92,12 @@ namespace TACTIndexTestCSharp
                 if (offset == -1)
                 {
                     // File is unarchived
-                    filePath = await CDN.GetFilePath("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), true);
+                    filePath = await CDN.GetFilePath("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), fileEKeys.Value.decodedFileSize, 0, true);
                 }
                 else
                 {
                     // File is archived
-                    filePath = await CDN.GetFilePathFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, true);
+                    filePath = await CDN.GetFilePathFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true);
                 }
 
                 if (!Directory.Exists(Path.Combine("output", Path.GetDirectoryName(fileName))))
@@ -112,9 +105,10 @@ namespace TACTIndexTestCSharp
 
                 File.Copy(filePath, Path.Combine("output", fileName), true);
             }
+
             eTimer.Stop();
 
-            Console.WriteLine("Extracted " + extractionTargets.Count + " files in " + eTimer.Elapsed.TotalMilliseconds + "ms (average of " + Math.Round(eTimer.Elapsed.TotalMilliseconds / extractionTargets.Count,5) + "ms per file)");
+            Console.WriteLine("Extracted " + extractionTargets.Count + " files in " + eTimer.Elapsed.TotalMilliseconds + "ms (average of " + Math.Round(eTimer.Elapsed.TotalMilliseconds / extractionTargets.Count, 5) + "ms per file)");
 
             totalTimer.Stop();
             Console.WriteLine("Total time: " + totalTimer.Elapsed.TotalMilliseconds + "ms");

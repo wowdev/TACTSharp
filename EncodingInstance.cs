@@ -5,9 +5,9 @@ namespace TACTIndexTestCSharp
 {
     public class EncodingInstance
     {
-        private MemoryMappedFile encodingFile;
-        private MemoryMappedViewAccessor accessor;
-        private SafeMemoryMappedViewHandle mmapViewHandle;
+        private readonly MemoryMappedFile encodingFile;
+        private readonly MemoryMappedViewAccessor accessor;
+        private readonly SafeMemoryMappedViewHandle mmapViewHandle;
         private EncodingHeader header;
 
         public EncodingInstance(string path)
@@ -18,10 +18,10 @@ namespace TACTIndexTestCSharp
 
             this.header = ReadHeader();
 
-            if(this.header.version != 1)
+            if (this.header.version != 1)
                 throw new Exception("Unsupported encoding version");
 
-            if(this.header.hashSizeCKey != 0x10)
+            if (this.header.hashSizeCKey != 0x10)
                 throw new Exception("Unsupported CKey hash size");
 
             if (this.header.hashSizeEKey != 0x10)
@@ -53,7 +53,7 @@ namespace TACTIndexTestCSharp
             };
         }
 
-        unsafe static private byte* lowerBoundEkey(byte* begin, byte* end, long dataSize, ReadOnlySpan<byte> needle)
+        unsafe static private byte* LowerBoundEkey(byte* begin, byte* end, long dataSize, ReadOnlySpan<byte> needle)
         {
             var count = (end - begin) / dataSize;
 
@@ -94,13 +94,13 @@ namespace TACTIndexTestCSharp
             byte* startOfPageKeys = pageData + 22 + header.ESpecBlockSize;
             byte* endOfPageKeys = startOfPageKeys + (header.CEKeyPageTablePageCount * 32);
 
-            byte* lastPageKey = lowerBoundEkey(startOfPageKeys, endOfPageKeys, 32, cKeyTarget);
+            byte* lastPageKey = LowerBoundEkey(startOfPageKeys, endOfPageKeys, 32, cKeyTarget);
             if (lastPageKey == startOfPageKeys)
                 return null;
 
             // BAD
             var pageIndex = ((lastPageKey - startOfPageKeys) / 32) - 1;
-            if(pageIndex < 0)
+            if (pageIndex < 0)
                 pageIndex = 0;
             // NO MORE BAD
 
@@ -109,7 +109,7 @@ namespace TACTIndexTestCSharp
             var offs = 0;
             while (true)
             {
-                if(offs >= eKeyPageSize)
+                if (offs >= eKeyPageSize)
                     break;
 
                 var eKeyCount = targetPage[offs];
@@ -120,7 +120,7 @@ namespace TACTIndexTestCSharp
 
                 //Console.WriteLine("Checking if CKey @ " + ((startOfPageEKeys + offs) - pageData) + " matches " + Convert.ToHexStringLower(cKeyTarget));
 
-                if (targetPage.Slice(offs+5, header.hashSizeCKey).SequenceEqual(cKeyTarget))
+                if (targetPage.Slice(offs + 5, header.hashSizeCKey).SequenceEqual(cKeyTarget))
                 {
                     var decodedFileSize = (ulong)targetPage.Slice(offs, 5).ReadInt40BE();
                     offs += 5;

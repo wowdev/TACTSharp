@@ -12,11 +12,16 @@
                 Directory.CreateDirectory("cache");
         }
 
-        private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash)
+        private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0)
         {
             var cachePath = Path.Combine("cache", tprDir, type, hash);
             if (File.Exists(cachePath))
-                return File.ReadAllBytes(cachePath);
+            {
+                if (size > 0 && (ulong)new FileInfo(cachePath).Length != size)
+                    File.Delete(cachePath);
+                else
+                    return File.ReadAllBytes(cachePath);
+            }
 
             var url = $"http://{CDNServers[0]}/tpr/{tprDir}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
@@ -27,7 +32,7 @@
                 throw new Exception("Failed to download " + url);
 
             var data = await response.Content.ReadAsByteArrayAsync();
-            Directory.CreateDirectory(Path.GetDirectoryName(cachePath));
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
             File.WriteAllBytes(cachePath, data);
             return data;
         }
@@ -36,7 +41,12 @@
         {
             var cachePath = Path.Combine("cache", tprDir, "wow", eKey);
             if (File.Exists(cachePath))
-                return File.ReadAllBytes(cachePath);
+            {
+                if (new FileInfo(cachePath).Length == size)
+                    return File.ReadAllBytes(cachePath);
+                else
+                    File.Delete(cachePath);
+            }
 
             var url = $"http://{CDNServers[0]}/tpr/{tprDir}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
 
@@ -56,65 +66,55 @@
                 throw new Exception("Failed to download " + url);
 
             var data = await response.Content.ReadAsByteArrayAsync();
-            Directory.CreateDirectory(Path.GetDirectoryName(cachePath));
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
             File.WriteAllBytes(cachePath, data);
             return data;
         }
 
-
-        public static async Task<byte[]> GetFile(string tprDir, string type, string hash, bool decoded = false)
+        public static async Task<string> GetFilePath(string tprDir, string type, string hash, ulong decompressedSize, ulong compressedSize, bool decoded = false)
         {
-            if (decoded && File.Exists(Path.Combine("cache", tprDir, type, hash + ".decoded")))
-                return File.ReadAllBytes(Path.Combine("cache", tprDir, type, hash + ".decoded"));
-
-            var data = await DownloadFile(tprDir, type, hash);
-            if (!decoded)
+            var decodedPath = Path.Combine("cache", tprDir, type, hash + ".decoded");
+            if (decoded && File.Exists(decodedPath))
             {
-                return data;
+                var currentDecompLength = (ulong)new FileInfo(decodedPath).Length;
+                if (currentDecompLength == decompressedSize)
+                    return decodedPath;
             }
-            else
-            {
-                var decodedData = BLTE.Decode(data);
-                Directory.CreateDirectory(Path.Combine("cache", tprDir, type));
-                await File.WriteAllBytesAsync(Path.Combine("cache", tprDir, type, hash + ".decoded"), decodedData);
-                return decodedData;
-            }
-        }
 
-        public static async Task<string> GetFilePath(string tprDir, string type, string hash, bool decoded = false)
-        {
-            if (decoded && File.Exists(Path.Combine("cache", tprDir, type, hash + ".decoded")))
-                return Path.Combine("cache", tprDir, type, hash + ".decoded");
-
-            var data = await DownloadFile(tprDir, type, hash);
+            var data = await DownloadFile(tprDir, type, hash, compressedSize);
             if (!decoded)
             {
                 return Path.Combine("cache", tprDir, type, hash);
             }
             else
             {
-                var decodedData = BLTE.Decode(data);
+                var decodedData = BLTE.Decode(data, decompressedSize);
                 Directory.CreateDirectory(Path.Combine("cache", tprDir, type));
-                await File.WriteAllBytesAsync(Path.Combine("cache", tprDir, type, hash + ".decoded"), decodedData);
-                return Path.Combine("cache", tprDir, type, hash + ".decoded");
+                await File.WriteAllBytesAsync(decodedPath, decodedData);
+                return decodedPath;
             }
         }
-        public static async Task<string> GetFilePathFromArchive(string eKey, string tprDir, string archive, int offset, int size, bool decoded = false)
+        public static async Task<string> GetFilePathFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize, bool decoded = false)
         {
-            if (decoded && File.Exists(Path.Combine("cache", tprDir, "data", eKey + ".decoded")))
-                return Path.Combine("cache", tprDir, "data", eKey + ".decoded");
+            var decodedPath = Path.Combine("cache", tprDir, "data", eKey + ".decoded");
+            if (decoded && File.Exists(decodedPath))
+            {
+                var currentDecompLength = (ulong)new FileInfo(decodedPath).Length;
+                if (currentDecompLength == decompressedSize)
+                    return decodedPath;
+            }
 
-            var data = await DownloadFileFromArchive(eKey, tprDir, archive, offset, size);
+            var data = await DownloadFileFromArchive(eKey, tprDir, archive, offset, length);
             if (!decoded)
             {
                 return Path.Combine("cache", tprDir, "data", eKey);
             }
             else
             {
-                var decodedData = BLTE.Decode(data);
+                var decodedData = BLTE.Decode(data, decompressedSize);
                 Directory.CreateDirectory(Path.Combine("cache", tprDir, "data"));
-                await File.WriteAllBytesAsync(Path.Combine("cache", tprDir, "data", eKey + ".decoded"), decodedData);
-                return Path.Combine("cache", tprDir, "data", eKey + ".decoded");
+                await File.WriteAllBytesAsync(decodedPath, decodedData);
+                return decodedPath;
             }
         }
     }
