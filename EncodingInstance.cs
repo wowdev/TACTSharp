@@ -78,6 +78,12 @@ namespace TACTIndexTestCSharp
             return begin;
         }
 
+        public bool TryGetEKeys(Span<byte> cKeyTarget, out EncodingResult? result)
+        {
+            result = GetEKeys(cKeyTarget);
+            return result.HasValue;
+        }
+
         public unsafe EncodingResult? GetEKeys(Span<byte> cKeyTarget)
         {
             byte* pageData = null;

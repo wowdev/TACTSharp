@@ -1,89 +1,111 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 
 namespace TACTIndexTestCSharp
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            // mostly based on schlumpf's implementation, but with some changes because i dont know how to port some c++ things to c# properly
+            var buildConfig = new Config("D:\\Projects\\wow.tools.local\\fakebuildconfig");
+            if(!buildConfig.Values.TryGetValue("build-name", out var buildName))
+                throw new Exception("No build name found in build config");
 
-            var baseDir = "C:\\World of Warcraft\\data\\";
+            if(!buildConfig.Values.TryGetValue("encoding", out var encodingKey))
+                throw new Exception("No encoding key found in build config");
 
-            var inputArchive = Path.Combine(baseDir, "indices\\ec39d1815cbe1434aa9c77db96ab4211.index");
-            var cdnConfig = Path.Combine(baseDir, "config\\cd\\18\\cd18191b8928c33bf24b962e9330460f");
+            var cdnConfig = new Config(Path.Combine(Settings.BaseDir, "config", "cd", "18", "cd18191b8928c33bf24b962e9330460f"));
+            if (!cdnConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
+                throw new Exception("No archive group found in cdn config");
 
+            var archives = new List<string>();
+            if (cdnConfig.Values.TryGetValue("archives", out var archiveList))
+                archives.AddRange(archiveList);
+
+            var totalTimer = new Stopwatch();
+            totalTimer.Start();
             var eTimer = new Stopwatch();
             eTimer.Start();
-            var encoding = new EncodingInstance("D:\\Downloads\\e9feda05b1569cccbe49e179f7594617.dump");
+            var encodingPath = await CDN.GetFilePath("wow", "data", encodingKey[1], true);
+            eTimer.Stop();
+            Console.WriteLine("Retrieved encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+            eTimer.Restart();
+            var encoding = new EncodingInstance(encodingPath);
             eTimer.Stop();
             Console.WriteLine("Loaded encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
-            var found = 0;
-            var total = 0;
-            var timeList = new List<double>();
-            var stopWatch = new Stopwatch();
-            stopWatch.Start();
-            foreach (var line in File.ReadAllLines("D:\\Projects\\wow.tools.local\\manifests\\11.1.0.58221.txt"))
-            {
-                total++;
-                var splitLine = line.Split(';');
-                var cKeyTarget = Convert.FromHexString(splitLine[1].Trim());
+            if(!buildConfig.Values.TryGetValue("root", out var rootKey))
+                throw new Exception("No root key found in build config");
 
+            string rootEKey;
+            if(rootKey.Length == 1)
+            {
+                var root = Convert.FromHexString(rootKey[0]);
                 eTimer.Restart();
-                var eResult = encoding.GetEKeys(cKeyTarget);
+                if (!encoding.TryGetEKeys(root, out var rootEKeys) || rootEKeys == null)
+                    throw new Exception("Root key not found in encoding");
                 eTimer.Stop();
-                //Console.WriteLine("EKey lookup took " + eTimer.Elapsed.TotalMilliseconds + "ms");
-                timeList.Add(eTimer.Elapsed.TotalMilliseconds);
-                if (eResult != null)
-                {
-                    found++;
-                }
-                else
-                {
-                    Console.WriteLine("No EKeys found for CKey " + Convert.ToHexStringLower(cKeyTarget));
-                }
 
-                //if (total % 1000 == 0)
-                //{
-                //    Console.WriteLine("Checked " + total + " CKeys (found " + found + ")");
-                //}
+                rootEKey = Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]);
             }
-            stopWatch.Stop();
-            Console.WriteLine("Done, checked " + total + " CKeys in a total of " + stopWatch.Elapsed.TotalMilliseconds +"ms (average of " + timeList.Average() + "ms per lookup)");
-
-            return;
-            IndexInstance groupIndex;
-            var indices = new List<IndexInstance>();
-
-            var groupArchiveIndex = "";
-            var archives = new List<string>();
-
-            foreach (var line in File.ReadAllLines(cdnConfig))
+            else
             {
-                var parts = line.Split(" = ");
-                if (parts[0] == "archive-group")
-                    groupArchiveIndex = parts[1];
-                else if (parts[0] == "archives")
-                    archives.AddRange(parts[1].Split(" "));
+                rootEKey = rootKey[1];
             }
 
-            var gaSW = new Stopwatch();
-            var archiveSW = new Stopwatch();
+            eTimer.Restart();
+            var rootPath = await CDN.GetFilePath("wow", "data", rootEKey, true);
+            eTimer.Stop();
+            Console.WriteLine("Retrieved root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
-            if (!File.Exists(Path.Combine(baseDir, "indices", groupArchiveIndex + ".index")))
+            eTimer.Restart();
+            var rootInstance = new RootInstance(rootPath);
+            eTimer.Stop();
+            Console.WriteLine("Loaded root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+            if (!File.Exists(Path.Combine(Settings.BaseDir, "indices", groupArchiveIndex[0] + ".index")))
             {
                 // TODO: Make it? 
                 throw new Exception("Group archive index not found");
             }
 
+            var gaSW = new Stopwatch();
             gaSW.Start();
-            groupIndex = new IndexInstance(Path.Combine(baseDir, "indices", groupArchiveIndex + ".index"));
+            var groupIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "indices", groupArchiveIndex[0] + ".index"));
             gaSW.Stop();
-            Console.WriteLine("Loaded group archive index in " + gaSW.Elapsed.TotalMilliseconds + "ms");
+            Console.WriteLine("Loaded group index in " + gaSW.Elapsed.TotalMilliseconds + "ms");
 
-            var ramAfterGroupIndex = Process.GetCurrentProcess().WorkingSet64;
-            Console.WriteLine("RAM usage after group index: " + ramAfterGroupIndex / 1024 / 1024 + "MB");
+            var xyzm2 = rootInstance.GetEntryByFDID(189077) ?? throw new Exception("xyz.m2 not found in root");
+
+            eTimer.Restart();
+            if (!encoding.TryGetEKeys(xyzm2[0].md5, out var xyzEKeys) || xyzEKeys == null)
+                throw new Exception("EKey not found in encoding");
+            eTimer.Stop();
+            Console.WriteLine("EKey lookup in encoding took " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+            eTimer.Restart();
+            var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(xyzEKeys.Value.eKeys[0]);
+ 
+            eTimer.Stop();
+            Console.WriteLine("EKey lookup in group index took " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+            if (offset == -1)
+                throw new Exception("EKey not found in group index");
+
+            var targetArchive = cdnConfig.Values["archives"][archiveIndex];
+            Console.WriteLine("File found in archive " + targetArchive + " at offset " + offset + ", " + size + " bytes");
+
+            eTimer.Restart();
+            var xyzPath = await CDN.GetFilePathFromArchive(Convert.ToHexStringLower(xyzEKeys.Value.eKeys[0]), "wow", targetArchive, offset, size, true);
+            eTimer.Stop();
+            Console.WriteLine("Retrieved xyz.m2 in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+            Console.WriteLine("Available at " + xyzPath);
+            totalTimer.Stop();
+            Console.WriteLine("Total time: " + totalTimer.Elapsed.TotalMilliseconds + "ms");
+
+            return;
 
             //archiveSW.Start();
             //for (var i = 0; i < archives.Count; i++)
@@ -141,20 +163,20 @@ namespace TACTIndexTestCSharp
 
                 var looseFound = false;
 
-                archiveSW.Restart();
-                Parallel.ForEach(indices, index =>
-                {
-                    if (looseFound)
-                        return;
+                //archiveSW.Restart();
+                //Parallel.ForEach(indices, index =>
+                //{
+                //    if (looseFound)
+                //        return;
 
-                    var (offset, size, archiveIndex) = index.GetIndexInfo(eKeyTarget.AsSpan());
-                    if (offset != -1)
-                    {
-                        archiveSW.Stop();
-                        looseFound = true;
-                       // Console.WriteLine("Loose (" + offset + ", " + size + ", " + archiveIndex + " lookup took " + archiveSW.Elapsed.TotalMilliseconds + "ms");
-                    }
-                });
+                //    var (offset, size, archiveIndex) = index.GetIndexInfo(eKeyTarget.AsSpan());
+                //    if (offset != -1)
+                //    {
+                //        archiveSW.Stop();
+                //        looseFound = true;
+                //       // Console.WriteLine("Loose (" + offset + ", " + size + ", " + archiveIndex + " lookup took " + archiveSW.Elapsed.TotalMilliseconds + "ms");
+                //    }
+                //});
 
                 if(looseFound && !gaFound)
                     Console.WriteLine("Loose found " + eKey + " but group didn't");

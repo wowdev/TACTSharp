@@ -3,6 +3,7 @@ using System.IO.MemoryMappedFiles;
 
 namespace TACTIndexTestCSharp
 {
+    // mostly based on schlumpf's implementation, but with some changes because i dont know how to port some c++ things to c# properly
     public sealed class IndexInstance
     {
         private long indexSize;
