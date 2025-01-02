@@ -17,6 +17,11 @@
             return keys.TryGetValue(keyName, out key);
         }
 
+        public static void SetKey(ulong keyName, byte[] key)
+        {
+            keys[keyName] = key;
+        }
+
         public static void LoadKeys()
         {
             if (!File.Exists("WoW.txt")) return;
