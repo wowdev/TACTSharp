@@ -1,0 +1,64 @@
+name: Build release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v0.1.13
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+  build:
+    name: Build Release
+    needs: create_release
+    strategy:
+      matrix:
+        kind: ['linux', 'windows', 'macOS']
+        include:
+          - kind: linux
+            os: ubuntu-latest
+            target: linux-x64
+            config: Release
+          - kind: windows
+            os: windows-latest
+            target: win-x64
+            config: Release
+          - kind: macOS
+            os: macos-latest
+            target: osx-x64
+            config: Release
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 9.0.x
+    - name: Restore dependencies
+      run: dotnet restore /p:Configuration=${{ matrix.config }}
+    - name: Publish
+      run: dotnet publish --configuration ${{ matrix.config }} --no-restore 
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+    - name: Archive Release
+      uses: thedoctor0/zip-release@main
+      with:
+        directory: ${{ github.workspace }}/bin/${{ matrix.config }}
+        type: 'zip'
+        filename: ${{ github.workspace }}/${{ matrix.config }}-${{ matrix.target }}.zip
+    - name: Release
+      uses: softprops/action-gh-release@v0.1.13
+      with:
+        files: ${{ github.workspace }}/${{ matrix.config }}-${{ matrix.target }}.zip
