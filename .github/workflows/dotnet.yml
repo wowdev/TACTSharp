@@ -35,8 +35,10 @@ jobs:
         dotnet-version: 9.0.x
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=${{ matrix.config }}
-    - name: Publish
-      run: dotnet publish --configuration ${{ matrix.config }} --no-restore --self-contained
+    - name: Publish TACTTool
+      run: dotnet publish --configuration ${{ matrix.config }} --no-restore --self-contained TACTTool/TACTTool.csproj
+    - name: Publish TACTSharp
+      run: dotnet publish --configuration ${{ matrix.config }} --no-restore TACTSharp/TACTSharp.csproj
     - name: Test
       run: dotnet test --no-build --verbosity normal
     - name: Archive TACTTool Release
