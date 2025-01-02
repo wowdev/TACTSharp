@@ -116,7 +116,11 @@ namespace TACTTool
             gaSW.Stop();
             Console.WriteLine("Loaded group index in " + gaSW.Elapsed.TotalMilliseconds + "ms");
 
-            Directory.CreateDirectory("output");
+            if(!File.Exists("extract.txt"))
+            {
+                Console.WriteLine("No extract.txt found, skipping extraction..");
+                return;
+            }
 
             var extractionTargets = new List<(uint fileDataID, string fileName)>();
             foreach (var line in File.ReadAllLines("extract.txt"))
@@ -129,6 +133,8 @@ namespace TACTTool
             }
 
             eTimer.Restart();
+
+            Directory.CreateDirectory("output");
 
             Parallel.ForEach(extractionTargets, (target) =>
             {
