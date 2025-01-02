@@ -9,6 +9,8 @@ namespace TACTSharp
         private readonly MemoryMappedViewAccessor accessor;
         private readonly SafeMemoryMappedViewHandle mmapViewHandle;
         private EncodingHeader header;
+        private string[] ESpecs = [];
+        private readonly Lock ESpecLock = new();
 
         public EncodingInstance(string path)
         {
@@ -98,12 +100,7 @@ namespace TACTSharp
             if (lastPageKey == startOfPageKeys)
                 return null;
 
-            // BAD
             var pageIndex = ((lastPageKey - startOfPageKeys) / 32) - 1;
-            if (pageIndex < 0)
-                pageIndex = 0;
-            // NO MORE BAD
-
             var startOfPageEKeys = endOfPageKeys + ((int)pageIndex * eKeyPageSize);
             var targetPage = new ReadOnlySpan<byte>(startOfPageEKeys, eKeyPageSize);
             var offs = 0;
@@ -117,8 +114,6 @@ namespace TACTSharp
 
                 if (eKeyCount == 0)
                     continue;
-
-                //Console.WriteLine("Checking if CKey @ " + ((startOfPageEKeys + offs) - pageData) + " matches " + Convert.ToHexStringLower(cKeyTarget));
 
                 if (targetPage.Slice(offs + 5, header.hashSizeCKey).SequenceEqual(cKeyTarget))
                 {
@@ -156,6 +151,76 @@ namespace TACTSharp
             return null;
         }
 
+        public unsafe (string eSpec, ulong encodedFileSize)? GetESpec(Span<byte> eKeyTarget)
+        {
+            byte* pageData = null;
+            mmapViewHandle.AcquirePointer(ref pageData);
+            lock (ESpecLock)
+            {
+                if (ESpecs.Length == 0)
+                {
+                    var timer = new System.Diagnostics.Stopwatch();
+                    timer.Start();
+                    var eSpecs = new List<string>();
+
+                    var eSpecTable = new ReadOnlySpan<byte>(pageData + 22, (int)header.ESpecBlockSize);
+                    var eSpecOffs = 0;
+                    while (true)
+                    {
+                        if (eSpecOffs >= header.ESpecBlockSize)
+                            break;
+
+                        var eSpecString = eSpecTable[eSpecOffs..].ReadNullTermString();
+                        eSpecOffs += eSpecString.Length + 1;
+                        eSpecs.Add(eSpecString);
+                    }
+
+                    ESpecs = [.. eSpecs];
+                    timer.Stop();
+                    Console.WriteLine("Loaded " + ESpecs.Length + " ESpecs in " + timer.Elapsed.TotalMilliseconds + "ms");
+                }
+            }
+
+            var eKeyPageSize = header.EKeySpecPageSizeKB * 1024;
+
+            byte* startOfESpecPageKeys = pageData + 22 + header.ESpecBlockSize + (header.CEKeyPageTablePageCount * 32) + (header.CEKeyPageTablePageCount * (header.CKeyPageSizeKB * 1024));
+            byte* endOfESpecPageKeys = startOfESpecPageKeys + (header.EKeySpecPageTablePageCount * 32);
+
+            byte* firstESpecPageKey = LowerBoundEkey(startOfESpecPageKeys, endOfESpecPageKeys, 32, eKeyTarget);
+            if (firstESpecPageKey == startOfESpecPageKeys)
+                return null;
+
+            var pageIndex = ((firstESpecPageKey - startOfESpecPageKeys) / 32) - 1;
+            var startOfPageESpec = endOfESpecPageKeys + ((int)pageIndex * eKeyPageSize);
+            var targetPage = new ReadOnlySpan<byte>(startOfPageESpec, eKeyPageSize);
+            var offs = 0;
+            while (true)
+            {
+                if (offs >= eKeyPageSize)
+                    break;
+
+                if (targetPage.Slice(offs, header.hashSizeEKey).SequenceEqual(eKeyTarget))
+                {
+                    offs += header.hashSizeEKey; // +ekey
+
+                    var eSpecIndex = targetPage.Slice(offs, 4).ReadInt32BE();
+                    offs += 4;
+
+                    var encodedFileSize = (ulong)targetPage.Slice(offs, 5).ReadInt40BE();
+
+                    return (ESpecs[eSpecIndex], encodedFileSize);
+                }
+                else
+                {
+                    offs += header.hashSizeEKey; // +ekey
+                    offs += 4; // +encodedFileSize
+                    offs += 5; // +encodedFileSize
+                }
+            }
+
+            Console.WriteLine("ESpec not found for EKey " + Convert.ToHexStringLower(eKeyTarget) + " but should have been in page index " + pageIndex);
+            return null;
+        }
 
         private unsafe struct EncodingHeader
         {
