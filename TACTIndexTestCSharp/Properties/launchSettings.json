@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TACTIndexTestCSharp": {
+      "commandName": "Project",
+      "commandLineArgs": "wow"
+    }
+  }
+}
