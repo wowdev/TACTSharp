@@ -1,7 +1,7 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System.IO.MemoryMappedFiles;
 
-namespace TACTIndexTestCSharp
+namespace TACTSharp
 {
     public class EncodingInstance
     {

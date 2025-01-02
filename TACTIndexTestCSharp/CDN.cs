@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace TACTIndexTestCSharp
+namespace TACTSharp
 {
     public static class CDN
     {

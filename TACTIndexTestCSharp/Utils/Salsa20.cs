@@ -2,7 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace TACTIndexTestCSharp
+namespace TACTSharp
 {
     /// <summary>
     /// Implements the Salsa20 stream encryption cipher, as defined at http://cr.yp.to/snuffle.html.

@@ -2,7 +2,7 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 
-namespace TACTIndexTestCSharp
+namespace TACTSharp
 {
     public static class BLTE
     {

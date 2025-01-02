@@ -1,7 +1,7 @@
 ﻿using System.Buffers.Binary;
 using System.Security.Cryptography;
 
-namespace TACTIndexTestCSharp
+namespace TACTSharp
 {
     // roughly based on schlumpf's implementation
     public static class GroupIndex

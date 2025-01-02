@@ -1,7 +1,7 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System.IO.MemoryMappedFiles;
 
-namespace TACTIndexTestCSharp
+namespace TACTSharp
 {
     // mostly based on schlumpf's implementation, but with some changes because i dont know how to port some c++ things to c# properly
     public sealed class IndexInstance

@@ -2,7 +2,7 @@
 using System.Buffers.Binary;
 using System.IO.MemoryMappedFiles;
 
-namespace TACTIndexTestCSharp
+namespace TACTSharp
 {
     // THIS IS MOSTLY YOINKED FROM BUILDBACKUP, REMAKE AT SOME POINT
     public class RootInstance

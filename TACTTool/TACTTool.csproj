@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TACTIndexTestCSharp\TACTIndexTestCSharp.csproj" />
+    <ProjectReference Include="..\TACTIndexTestCSharp\TACTSharp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

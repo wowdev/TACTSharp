@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-using TACTIndexTestCSharp;
+using TACTSharp;
 
 namespace TACTTool
 {

@@ -1,4 +1,4 @@
-﻿namespace TACTIndexTestCSharp
+﻿namespace TACTSharp
 {
     public static class KeyService
     {
