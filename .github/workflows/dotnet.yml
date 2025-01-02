@@ -39,13 +39,21 @@ jobs:
       run: dotnet publish --configuration ${{ matrix.config }} --no-restore --self-contained
     - name: Test
       run: dotnet test --no-build --verbosity normal
-    - name: Archive Release
+    - name: Archive TACTTool Release
       uses: thedoctor0/zip-release@main
       with:
         directory: ${{ github.workspace }}/TACTTool/bin/Release/net9.0/publish
         type: 'zip'
-        filename: ${{ github.workspace }}/${{ matrix.config }}-${{ matrix.target }}.zip
+        filename: ${{ github.workspace }}/TACTTool-${{ matrix.config }}-${{ matrix.target }}.zip
+    - name: Archive TACTSharp Release
+      uses: thedoctor0/zip-release@main
+      with:
+        directory: ${{ github.workspace }}/TACTSharp/bin/Release/net9.0/publish
+        type: 'zip'
+        filename: ${{ github.workspace }}/TACTSharp-lib-${{ matrix.config }}-${{ matrix.target }}.zip
     - name: Release
       uses: softprops/action-gh-release@v0.1.13
       with:
-        files: ${{ github.workspace }}/${{ matrix.config }}-${{ matrix.target }}.zip
+        files: |
+            ${{ github.workspace }}/TACTTool-${{ matrix.config }}-${{ matrix.target }}.zip
+            ${{ github.workspace }}/TACTSharp-lib-${{ matrix.config }}-${{ matrix.target }}.zip
