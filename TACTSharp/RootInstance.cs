@@ -99,7 +99,17 @@ namespace TACTSharp
             return [.. entriesFDID.Keys];
         }
 
-        public bool FileExistsByFDID(uint fileDataID)
+        public ulong[] GetAvailableLookups()
+        {
+            return [.. entriesLookup.Keys];
+        }
+
+        public bool FileExists(ulong lookup)
+        {
+            return entriesLookup.ContainsKey(lookup);
+        }
+
+        public bool FileExists(uint fileDataID)
         {
             return entriesFDID.ContainsKey(fileDataID);
         }
