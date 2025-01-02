@@ -8,9 +8,6 @@
 
         static CDN()
         {
-            if (!Directory.Exists("cache"))
-                Directory.CreateDirectory("cache");
-
             var cdnsFile = Client.GetStringAsync("http://us.patch.battle.net:1119/wow/cdns").Result;
 
             foreach (var line in cdnsFile.Split('\n'))
@@ -127,6 +124,16 @@
                 return data;
             else
                 return BLTE.Decode(data, decompressedSize);
+        }
+
+        public static async Task<string> GetDecodedFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
+        {
+            var data = await DownloadFile(tprDir, type, hash, compressedSize, token);
+            var decodedData = BLTE.Decode(data, decompressedSize);
+            var cachePath = Path.Combine("cache", tprDir, type, hash + ".decoded");
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+            await File.WriteAllBytesAsync(cachePath, decodedData, token);
+            return cachePath;
         }
     }
 }

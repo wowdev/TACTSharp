@@ -73,15 +73,9 @@ namespace TACTIndexTestCSharp
             var totalTimer = new Stopwatch();
             totalTimer.Start();
 
-            if (!Directory.Exists(Path.Combine("cache", "wow", "data")))
-                Directory.CreateDirectory(Path.Combine("cache", "wow", "data"));
-
             var eTimer = new Stopwatch();
             eTimer.Start();
-            var encodingPath = Path.Combine("cache", "wow", "data", encodingKey[1] + ".decoded");
-            if (!File.Exists(encodingPath))
-                await File.WriteAllBytesAsync(encodingPath, await CDN.GetFile("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][1]), ulong.Parse(buildConfig.Values["encoding-size"][0]), true));
-
+            var encodingPath = await CDN.GetDecodedFilePath("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][1]), ulong.Parse(buildConfig.Values["encoding-size"][0]));
             eTimer.Stop();
             Console.WriteLine("Retrieved encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
@@ -102,9 +96,7 @@ namespace TACTIndexTestCSharp
             var rootEKey = Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]);
 
             eTimer.Restart();
-            var rootPath = Path.Combine("cache", "wow", "data", rootEKey + ".decoded");
-            if (!File.Exists(rootPath))
-                await File.WriteAllBytesAsync(rootPath, await CDN.GetFile("wow", "data", rootEKey, 0, rootEKeys.Value.decodedFileSize, true));
+            var rootPath = await CDN.GetDecodedFilePath("wow", "data", rootEKey, 0, rootEKeys.Value.decodedFileSize);
             eTimer.Stop();
             Console.WriteLine("Retrieved root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
@@ -114,7 +106,6 @@ namespace TACTIndexTestCSharp
             Console.WriteLine("Loaded root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
 
             var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
-
             if (!File.Exists(groupIndexPath))
                 GroupIndex.Generate(groupArchiveIndex[0], cdnConfig.Values["archives"]);
 
@@ -124,8 +115,7 @@ namespace TACTIndexTestCSharp
             gaSW.Stop();
             Console.WriteLine("Loaded group index in " + gaSW.Elapsed.TotalMilliseconds + "ms");
 
-            if (!Directory.Exists("output"))
-                Directory.CreateDirectory("output");
+            Directory.CreateDirectory("output");
 
             var extractionTargets = new List<(uint fileDataID, string fileName)>();
             foreach (var line in File.ReadAllLines("extract.txt"))
@@ -159,8 +149,7 @@ namespace TACTIndexTestCSharp
                 else
                     fileBytes = CDN.GetFileFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true).Result;
 
-                if (!Directory.Exists(Path.Combine("output", Path.GetDirectoryName(fileName)!)))
-                    Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)!));
+                Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)!));
 
                 File.WriteAllBytes(Path.Combine("output", fileName), fileBytes);
             });
