@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.35514.174
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTSharp", "TACTIndexTestCSharp\TACTSharp.csproj", "{A5F9E097-BEDF-45CA-B893-7324C0070D05}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTSharp", "TACTSharp\TACTSharp.csproj", "{A5F9E097-BEDF-45CA-B893-7324C0070D05}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTTool", "TACTTool\TACTTool.csproj", "{42BA4C53-C942-4E39-9E25-1134BEE0C4FE}"
 EndProject

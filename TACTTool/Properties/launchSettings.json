@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "TACTIndexTestCSharp": {
+    "TACTTool": {
       "commandName": "Project",
       "commandLineArgs": "wow"
     }
