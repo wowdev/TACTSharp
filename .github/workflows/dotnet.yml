@@ -36,7 +36,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore /p:Configuration=${{ matrix.config }}
     - name: Publish
-      run: dotnet publish --configuration ${{ matrix.config }} --no-restore 
+      run: dotnet publish --configuration ${{ matrix.config }} --no-restore --self-contained
     - name: Test
       run: dotnet test --no-build --verbosity normal
     - name: Archive Release
