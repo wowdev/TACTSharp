@@ -1,5 +1,4 @@
 ﻿using System.Buffers.Binary;
-using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace TACTIndexTestCSharp
@@ -11,34 +10,37 @@ namespace TACTIndexTestCSharp
         {
             public byte[] EKey;
             public uint Size;
-            public uint ArchiveIndex;
+            public ushort ArchiveIndex;
             public uint Offset;
         }
 
         private static readonly List<IndexEntry> Entries = [];
+        private static readonly Lock entryLock = new();
 
         public static void Generate(string hash, string[] archives)
         {
             Console.WriteLine("Generating group index for " + hash);
             Console.WriteLine("Loading " + archives.Length + " index files");
 
-            for(var i = 0; i < archives.Length; i++)
+            Parallel.For(0, archives.Length, archiveIndex =>
             {
-                _ = CDN.GetFile("wow", "data", archives[i] + ".index").Result;
-
-                var index = new IndexInstance(Path.Combine("cache", "wow", "data", archives[i] + ".index"));
+                _ = CDN.GetFile("wow", "data", archives[archiveIndex] + ".index").Result;
+                var index = new IndexInstance(Path.Combine("cache", "wow", "data", archives[archiveIndex] + ".index"));
                 var allEntries = index.GetAllEntries();
-                foreach(var entry in allEntries)
+                foreach (var (eKey, offset, size) in allEntries)
                 {
-                    Entries.Add(new IndexEntry
+                    lock (entryLock)
                     {
-                        EKey = entry.eKey,
-                        Size = (uint)entry.size,
-                        ArchiveIndex = (uint)i,
-                        Offset = (uint)entry.offset
-                    });
+                        Entries.Add(new IndexEntry
+                        {
+                            EKey = eKey,
+                            Size = (uint)size,
+                            ArchiveIndex = (ushort)archiveIndex,
+                            Offset = (uint)offset
+                        });
+                    }
                 }
-            }
+            });
 
             Console.WriteLine("Done loading index files, got " + Entries.Count + " entries");
 
@@ -136,7 +138,7 @@ namespace TACTIndexTestCSharp
                 bin.BaseStream.Position = totalSize - 28;
                 var fullFooterBytes = br.ReadBytes(28);
                 var fullFooterMD5Hash = MD5.HashData(fullFooterBytes);
-                if(Convert.ToHexStringLower(fullFooterMD5Hash) != hash)
+                if (Convert.ToHexStringLower(fullFooterMD5Hash) != hash)
                     throw new Exception("Footer MD5 of group index does not match group index filename");
 
                 File.WriteAllBytes(Path.Combine("cache", "wow", "data", hash + ".index"), ms.ToArray());
