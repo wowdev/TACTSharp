@@ -105,8 +105,6 @@ namespace TACTIndexTestCSharp
             uint totalFiles = 0;
             uint namedFiles = 0;
             var newRoot = false;
-
-            uint dfHeaderSize = 0;
             uint dfVersion = 0;
 
             byte* fileData = null;
@@ -127,7 +125,7 @@ namespace TACTIndexTestCSharp
                 if (namedFiles == 1 || namedFiles == 2)
                 {
                     // Post 10.1.7
-                    dfHeaderSize = totalFiles;
+                    uint dfHeaderSize = totalFiles;
                     dfVersion = namedFiles;
 
                     if (dfVersion == 1 || dfVersion == 2)
@@ -150,12 +148,11 @@ namespace TACTIndexTestCSharp
 
             while (offset < rootLength)
             {
-                ContentFlags contentFlags = 0;
-                LocaleFlags localeFlags = 0;
-
                 var count = BinaryPrimitives.ReadUInt32LittleEndian(rootdata.Slice(offset, 4));
                 offset += 4;
 
+                ContentFlags contentFlags;
+                LocaleFlags localeFlags;
                 if (dfVersion == 2)
                 {
                     localeFlags = (LocaleFlags)BinaryPrimitives.ReadUInt32LittleEndian(rootdata.Slice(offset, 4));
@@ -274,8 +271,15 @@ namespace TACTIndexTestCSharp
                 blockCount++;
             }
 
-            Console.WriteLine("Loaded " + entriesFDID.Count + "/" + totalFiles + " total files");
-            Console.WriteLine("Loaded " + namedCount + "/" + namedFiles + " named files");
+            if(newRoot)
+            {
+                Console.WriteLine("Read " + entriesFDID.Count + "/" + totalFiles + " total files from root");
+                Console.WriteLine("Read " + namedCount + "/" + namedFiles + " named files from root");
+            }
+            else
+            {
+                Console.WriteLine("Read " + entriesFDID.Count + " files from root");
+            }
         }
     }
 }
