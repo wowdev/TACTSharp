@@ -42,7 +42,7 @@ jobs:
     - name: Archive TACTTool Release
       uses: thedoctor0/zip-release@main
       with:
-        directory: ${{ github.workspace }}/TACTTool/bin/Release/net9.0/publish
+        directory: ${{ github.workspace }}/TACTTool/bin/Release/net9.0/${{ matrix.target }}/publish
         type: 'zip'
         filename: ${{ github.workspace }}/TACTTool-${{ matrix.config }}-${{ matrix.target }}.zip
     - name: Archive TACTSharp Release
