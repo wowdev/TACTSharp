@@ -6,29 +6,60 @@ namespace TACTIndexTestCSharp
     {
         static async Task Main(string[] args)
         {
-            if(args.Length != 2)
+            if(args.Length < 1)
             {
-                Console.WriteLine("Usage: TACTIndexTestCSharp <buildconfig(path)> <cdnconfig(path)>");
+                Console.WriteLine("Usage:");
+                Console.WriteLine("\tTACTIndexTestCSharp <product>");
+                Console.WriteLine("\tTACTIndexTestCSharp <buildconfig(path)> <cdnconfig(path)>");
                 Console.WriteLine("Press enter to exit.");
                 Console.ReadLine();
                 return;
             }
 
-            Config buildConfig;
-            if(File.Exists(args[0]))
-                buildConfig = new Config(args[0], true);
-            else if (args[0].Length == 32 && args[0].All(c => "0123456789abcdef".Contains(c)))
-                buildConfig = new Config(args[0], false);
-            else
-                throw new Exception("Invalid buildconfig(path)");
+            Config? buildConfig = null;
+            Config? cdnConfig = null;
 
-            Config cdnConfig;
-            if (File.Exists(args[1]))
-                cdnConfig = new Config(args[1], true);
-            else if (args[1].Length == 32 && args[1].All(c => "0123456789abcdef".Contains(c)))
-                cdnConfig = new Config(args[1], false);
+            if(args.Length == 1)
+            {
+                var versions = await CDN.GetProductVersions(args[0]);
+                foreach (var line in versions.Split('\n'))
+                {
+                    // TODO: Configurable?
+                    if(!line.StartsWith("us|"))
+                        continue;
+
+                    var splitLine = line.Split('|');
+                    if (splitLine.Length < 2)
+                        continue;
+
+                    buildConfig = new Config(splitLine[1], false);
+                    cdnConfig = new Config(splitLine[2], false);
+                }
+
+            }
+            else if(args.Length == 2)
+            {
+                if (File.Exists(args[0]))
+                    buildConfig = new Config(args[0], true);
+                else if (args[0].Length == 32 && args[0].All(c => "0123456789abcdef".Contains(c)))
+                    buildConfig = new Config(args[0], false);
+                else
+                    throw new Exception("Invalid buildconfig(path)");
+
+                if (File.Exists(args[1]))
+                    cdnConfig = new Config(args[1], true);
+                else if (args[1].Length == 32 && args[1].All(c => "0123456789abcdef".Contains(c)))
+                    cdnConfig = new Config(args[1], false);
+                else
+                    throw new Exception("Invalid buildconfig(path)");
+            }
             else
-                throw new Exception("Invalid buildconfig(path)");
+            {
+                throw new Exception("Invalid number of arguments");
+            }
+
+            if(buildConfig == null || cdnConfig == null)
+                throw new Exception("Failed to load configs");
 
             if (!buildConfig.Values.TryGetValue("encoding", out var encodingKey))
                 throw new Exception("No encoding key found in build config");

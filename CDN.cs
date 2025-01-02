@@ -45,6 +45,11 @@
             CDNServers = pings.OrderBy(p => p.ping).Select(p => p.server).ToList();
         }
 
+        public static async Task<string> GetProductVersions(string product)
+        {
+            return await Client.GetStringAsync($"https://us.version.battle.net/{product}/versions");
+        }
+
         private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
         {
             var cachePath = Path.Combine("cache", tprDir, type, hash);
