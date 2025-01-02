@@ -26,8 +26,9 @@ namespace TACTIndexTestCSharp
                 return data[offset..].ToArray();
             }
 
-            var flags = data[offset];
-            offset += 1;
+            //var flags = data[offset];
+            offset += 1; // flags
+
             var chunkCount = (uint)((data[offset + 0] << 16) | (data[offset + 1] << 8) | (data[offset + 2] << 0));
             offset += 3;
 
@@ -56,7 +57,7 @@ namespace TACTIndexTestCSharp
                 var decompSize = (data[infoOffset + 0] << 24) | (data[infoOffset + 1] << 16) | (data[infoOffset + 2] << 8) | (data[infoOffset + 3] << 0);
                 infoOffset += 4;
 
-                var checkSum = data.Slice(infoOffset, 16);
+                //var checkSum = data.Slice(infoOffset, 16);
                 infoOffset += 16;
 
                 HandleDataBlock((char)data[compOffset], data.Slice(compOffset + 1, compSize - 1), i, compSize, decompSize, compOffset, decompOffset, decompData);
@@ -88,18 +89,8 @@ namespace TACTIndexTestCSharp
 
                 case 'E':
                     var decompSpan = decompData.AsSpan(decompOffset);
-                    try
-                    {
-                        if(TryDecrypt(compData, chunkIndex, out var decryptedData))
-                            HandleDataBlock((char)decryptedData[0], decryptedData.AsSpan()[1..], chunkIndex, compSize, decompSize, compOffset, decompOffset, decompData);
-                    }
-                    catch (KeyNotFoundException e)
-                    {
-                        //Console.WriteLine(e.Message);
-                        var empty = new byte[decompSize];
-                        empty.CopyTo(decompSpan);
-                    }
-
+                    if (TryDecrypt(compData, chunkIndex, out var decryptedData))
+                        HandleDataBlock((char)decryptedData[0], decryptedData.AsSpan()[1..], chunkIndex, compSize, decompSize, compOffset, decompOffset, decompData);
                     break;
 
                 default:
