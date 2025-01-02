@@ -6,7 +6,7 @@ namespace TACTIndexTestCSharp
     {
         static async Task Main(string[] args)
         {
-            if(args.Length < 1)
+            if (args.Length < 1)
             {
                 Console.WriteLine("Usage:");
                 Console.WriteLine("\tTACTIndexTestCSharp <product>");
@@ -19,13 +19,13 @@ namespace TACTIndexTestCSharp
             Config? buildConfig = null;
             Config? cdnConfig = null;
 
-            if(args.Length == 1)
+            if (args.Length == 1)
             {
                 var versions = await CDN.GetProductVersions(args[0]);
                 foreach (var line in versions.Split('\n'))
                 {
                     // TODO: Configurable?
-                    if(!line.StartsWith("us|"))
+                    if (!line.StartsWith("us|"))
                         continue;
 
                     var splitLine = line.Split('|');
@@ -35,9 +35,8 @@ namespace TACTIndexTestCSharp
                     buildConfig = new Config(splitLine[1], false);
                     cdnConfig = new Config(splitLine[2], false);
                 }
-
             }
-            else if(args.Length == 2)
+            else if (args.Length == 2)
             {
                 if (File.Exists(args[0]))
                     buildConfig = new Config(args[0], true);
@@ -58,7 +57,7 @@ namespace TACTIndexTestCSharp
                 throw new Exception("Invalid number of arguments");
             }
 
-            if(buildConfig == null || cdnConfig == null)
+            if (buildConfig == null || cdnConfig == null)
                 throw new Exception("Failed to load configs");
 
             if (!buildConfig.Values.TryGetValue("encoding", out var encodingKey))
@@ -70,13 +69,13 @@ namespace TACTIndexTestCSharp
             var totalTimer = new Stopwatch();
             totalTimer.Start();
 
-            if(!Directory.Exists(Path.Combine("cache", "wow", "data")))
+            if (!Directory.Exists(Path.Combine("cache", "wow", "data")))
                 Directory.CreateDirectory(Path.Combine("cache", "wow", "data"));
 
             var eTimer = new Stopwatch();
             eTimer.Start();
             var encodingPath = Path.Combine("cache", "wow", "data", encodingKey[1] + ".decoded");
-            if(!File.Exists(encodingPath))
+            if (!File.Exists(encodingPath))
                 await File.WriteAllBytesAsync(encodingPath, await CDN.GetFile("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][1]), ulong.Parse(buildConfig.Values["encoding-size"][0]), true));
 
             eTimer.Stop();
@@ -99,8 +98,8 @@ namespace TACTIndexTestCSharp
             var rootEKey = Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]);
 
             eTimer.Restart();
-            var rootPath = Path.Combine("cache", "wow", "data", rootEKey + ".decoded"); 
-            if(!File.Exists(rootPath))
+            var rootPath = Path.Combine("cache", "wow", "data", rootEKey + ".decoded");
+            if (!File.Exists(rootPath))
                 await File.WriteAllBytesAsync(rootPath, await CDN.GetFile("wow", "data", rootEKey, 0, rootEKeys.Value.decodedFileSize, true));
             eTimer.Stop();
             Console.WriteLine("Retrieved root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
