@@ -21,6 +21,7 @@ namespace TACTIndexTestCSharp
 
             if (args.Length == 1)
             {
+                Console.WriteLine("Using product " + args[0]);
                 var versions = await CDN.GetProductVersions(args[0]);
                 foreach (var line in versions.Split('\n'))
                 {
@@ -32,12 +33,15 @@ namespace TACTIndexTestCSharp
                     if (splitLine.Length < 2)
                         continue;
 
+                    Console.WriteLine("Using buildconfig " + splitLine[1] + " and cdnconfig " + splitLine[2]);
                     buildConfig = new Config(splitLine[1], false);
                     cdnConfig = new Config(splitLine[2], false);
                 }
             }
             else if (args.Length == 2)
             {
+                Console.WriteLine("Using buildconfig " + args[0] + " and cdnconfig " + args[1]);
+
                 if (File.Exists(args[0]))
                     buildConfig = new Config(args[0], true);
                 else if (args[0].Length == 32 && args[0].All(c => "0123456789abcdef".Contains(c)))
