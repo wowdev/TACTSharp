@@ -8,24 +8,8 @@ namespace TACTSharp
     /// Implements the Salsa20 stream encryption cipher, as defined at http://cr.yp.to/snuffle.html.
     /// </summary>
     /// <remarks>See <a href="http://code.logos.com/blog/2008/06/salsa20_implementation_in_c_1.html">Salsa20 Implementation in C#</a>.</remarks>
-    public sealed class Salsa20 : SymmetricAlgorithm
+    public sealed class Salsa20
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Salsa20"/> class.
-        /// </summary>
-        /// <exception cref="CryptographicException">The implementation of the class derived from the symmetric algorithm is not valid.</exception>
-        public Salsa20()
-        {
-            // set legal values
-            LegalBlockSizesValue = new[] { new KeySizes(512, 512, 0) };
-            LegalKeySizesValue = new[] { new KeySizes(128, 256, 128) };
-
-            // set default values
-            BlockSizeValue = 512;
-            KeySizeValue = 256;
-            m_rounds = 20;
-        }
-
         /// <summary>
         /// Creates a symmetric decryptor object with the specified <see cref="SymmetricAlgorithm.Key"/> property
         /// and initialization vector (<see cref="SymmetricAlgorithm.IV"/>).
@@ -33,7 +17,7 @@ namespace TACTSharp
         /// <param name="rgbKey">The secret key to use for the symmetric algorithm.</param>
         /// <param name="rgbIV">The initialization vector to use for the symmetric algorithm.</param>
         /// <returns>A symmetric decryptor object.</returns>
-        public override ICryptoTransform CreateDecryptor(byte[] rgbKey, byte[] rgbIV)
+        public Salsa20CryptoTransform CreateDecryptor(ReadOnlySpan<byte> rgbKey, ReadOnlySpan<byte> rgbIV)
         {
             // decryption and encryption are symmetrical
             return CreateEncryptor(rgbKey, rgbIV);
@@ -46,7 +30,7 @@ namespace TACTSharp
         /// <param name="rgbKey">The secret key to use for the symmetric algorithm.</param>
         /// <param name="rgbIV">The initialization vector to use for the symmetric algorithm.</param>
         /// <returns>A symmetric encryptor object.</returns>
-        public override ICryptoTransform CreateEncryptor(byte[] rgbKey, byte[] rgbIV)
+        public Salsa20CryptoTransform CreateEncryptor(ReadOnlySpan<byte> rgbKey, ReadOnlySpan<byte> rgbIV)
         {
             if (rgbKey == null)
                 throw new ArgumentNullException("rgbKey");
@@ -54,71 +38,16 @@ namespace TACTSharp
                 throw new CryptographicException("Invalid key size; it must be 128 or 256 bits.");
             CheckValidIV(rgbIV, "rgbIV");
 
-            return new Salsa20CryptoTransform(rgbKey, rgbIV, m_rounds);
+            return new Salsa20CryptoTransform(rgbKey, rgbIV, 20);
         }
 
-        private new bool ValidKeySize(int size)
+        private static bool ValidKeySize(int size)
         {
             return size == 128 || size == 256;
         }
 
-        /// <summary>
-        /// Generates a random initialization vector (<see cref="SymmetricAlgorithm.IV"/>) to use for the algorithm.
-        /// </summary>
-        public override void GenerateIV()
-        {
-            // generate a random 8-byte IV
-            IVValue = GetRandomBytes(8);
-        }
-
-        /// <summary>
-        /// Generates a random key (<see cref="SymmetricAlgorithm.Key"/>) to use for the algorithm.
-        /// </summary>
-        public override void GenerateKey()
-        {
-            // generate a random key
-            KeyValue = GetRandomBytes(KeySize / 8);
-        }
-
-        /// <summary>
-        /// Gets or sets the initialization vector (<see cref="SymmetricAlgorithm.IV"/>) for the symmetric algorithm.
-        /// </summary>
-        /// <value>The initialization vector.</value>
-        /// <exception cref="ArgumentNullException">An attempt was made to set the initialization vector to null. </exception>
-        /// <exception cref="CryptographicException">An attempt was made to set the initialization vector to an invalid size. </exception>
-        public override byte[] IV
-        {
-            get
-            {
-                return base.IV;
-            }
-            set
-            {
-                CheckValidIV(value, "value");
-                IVValue = (byte[])value.Clone();
-            }
-        }
-
-        /// <summary>
-        /// Gets or sets the number of rounds used by the Salsa20 algorithm.
-        /// </summary>
-        /// <value>The number of rounds.</value>
-        public int Rounds
-        {
-            get
-            {
-                return m_rounds;
-            }
-            set
-            {
-                if (value != 8 && value != 12 && value != 20)
-                    throw new ArgumentOutOfRangeException("value", "The number of rounds must be 8, 12, or 20.");
-                m_rounds = value;
-            }
-        }
-
         // Verifies that iv is a legal value for a Salsa20 IV.
-        private static void CheckValidIV(byte[] iv, string paramName)
+        private static void CheckValidIV(ReadOnlySpan<byte> iv, string paramName)
         {
             if (iv == null)
                 throw new ArgumentNullException(paramName);
@@ -126,26 +55,12 @@ namespace TACTSharp
                 throw new CryptographicException("Invalid IV size; it must be 8 bytes.");
         }
 
-        private static Random rnd = new Random();
-
-        // Returns a new byte array containing the specified number of random bytes.
-        private static byte[] GetRandomBytes(int byteCount)
-        {
-            byte[] bytes = new byte[byteCount];
-            rnd.NextBytes(bytes);
-            //using (RandomNumberGenerator rng = new RNGCryptoServiceProvider())
-            //    rng.GetBytes(bytes);
-            return bytes;
-        }
-
-        int m_rounds;
-
         /// <summary>
         /// Salsa20Impl is an implementation of <see cref="ICryptoTransform"/> that uses the Salsa20 algorithm.
         /// </summary>
-        private sealed class Salsa20CryptoTransform : ICryptoTransform
+        public sealed class Salsa20CryptoTransform
         {
-            public Salsa20CryptoTransform(byte[] key, byte[] iv, int rounds)
+            public Salsa20CryptoTransform(ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv, int rounds)
             {
                 Debug.Assert(key.Length == 16 || key.Length == 32, "abyKey.Length == 16 || abyKey.Length == 32", "Invalid key size.");
                 Debug.Assert(iv.Length == 8, "abyIV.Length == 8", "Invalid IV size.");
@@ -175,7 +90,7 @@ namespace TACTSharp
                 get { return 64; }
             }
 
-            public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
+            public int TransformBlock(ReadOnlySpan<byte> inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
             {
                 // check arguments
                 if (inputBuffer == null)
@@ -217,7 +132,7 @@ namespace TACTSharp
                 return bytesTransformed;
             }
 
-            public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
+            public byte[] TransformFinalBlock(ReadOnlySpan<byte> inputBuffer, int inputOffset, int inputCount)
             {
                 if (inputCount < 0)
                     throw new ArgumentOutOfRangeException("inputCount");
@@ -249,9 +164,9 @@ namespace TACTSharp
                 return unchecked(v + 1);
             }
 
-            private void Hash(byte[] output, uint[] input)
+            private void Hash(Span<byte> output, ReadOnlySpan<uint> input)
             {
-                uint[] state = (uint[])input.Clone();
+                uint[] state = input.ToArray();
 
                 for (int round = m_rounds; round > 0; round -= 2)
                 {
@@ -293,7 +208,7 @@ namespace TACTSharp
                     ToBytes(Add(state[index], input[index]), output, 4 * index);
             }
 
-            private void Initialize(byte[] key, byte[] iv)
+            private void Initialize(ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv)
             {
                 m_state = new uint[16];
                 m_state[1] = ToUInt32(key, 0);
@@ -301,7 +216,7 @@ namespace TACTSharp
                 m_state[3] = ToUInt32(key, 8);
                 m_state[4] = ToUInt32(key, 12);
 
-                byte[] constants = key.Length == 32 ? c_sigma : c_tau;
+                ReadOnlySpan<byte> constants = key.Length == 32 ? c_sigma : c_tau;
                 int keyIndex = key.Length - 16;
 
                 m_state[11] = ToUInt32(key, keyIndex + 0);
@@ -319,12 +234,12 @@ namespace TACTSharp
                 m_state[9] = 0;
             }
 
-            private static uint ToUInt32(byte[] input, int inputOffset)
+            private static uint ToUInt32(ReadOnlySpan<byte> input, int inputOffset)
             {
                 return unchecked((uint)(((input[inputOffset] | (input[inputOffset + 1] << 8)) | (input[inputOffset + 2] << 16)) | (input[inputOffset + 3] << 24)));
             }
 
-            private static void ToBytes(uint input, byte[] output, int outputOffset)
+            private static void ToBytes(uint input, Span<byte> output, int outputOffset)
             {
                 unchecked
                 {

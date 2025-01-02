@@ -7,6 +7,11 @@ static class Extensions
         return BinaryPrimitives.ReadInt16BigEndian(source);
     }
 
+    public static int ReadInt24BE(this ReadOnlySpan<byte> source)
+    {
+        return source[2] | source[1] << 8 | source[0] << 16;
+    }
+
     public static int ReadInt32BE(this ReadOnlySpan<byte> source)
     {
         return BinaryPrimitives.ReadInt32BigEndian(source);

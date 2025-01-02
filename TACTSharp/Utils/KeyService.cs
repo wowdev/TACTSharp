@@ -5,9 +5,7 @@
         static KeyService()
         {
             if (keys.Count == 0)
-            {
                 LoadKeys();
-            }
         }
 
         private static readonly Dictionary<ulong, byte[]> keys = [];
