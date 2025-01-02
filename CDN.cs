@@ -1,10 +1,12 @@
-﻿namespace TACTIndexTestCSharp
+﻿using System.Collections.Concurrent;
+
+namespace TACTIndexTestCSharp
 {
     public static class CDN
     {
         private static readonly HttpClient Client = new();
-
         private static readonly List<string> CDNServers = [];
+        private static readonly ConcurrentDictionary<string, Lock> FileLocks = new();
 
         static CDN()
         {
@@ -52,12 +54,15 @@
         private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
         {
             var cachePath = Path.Combine("cache", tprDir, type, hash);
+            FileLocks.TryAdd(cachePath, new Lock());
+
             if (File.Exists(cachePath))
             {
                 if (size > 0 && (ulong)new FileInfo(cachePath).Length != size)
                     File.Delete(cachePath);
                 else
-                    return File.ReadAllBytes(cachePath);
+                    lock (FileLocks[cachePath])
+                        return File.ReadAllBytes(cachePath);
             }
 
             var url = $"http://{CDNServers[0]}/tpr/{tprDir}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
@@ -70,17 +75,21 @@
 
             var data = await response.Content.ReadAsByteArrayAsync(token);
             Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-            File.WriteAllBytes(cachePath, data);
+            lock (FileLocks[cachePath])
+                File.WriteAllBytes(cachePath, data);
             return data;
         }
 
         private static async Task<byte[]> DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size, CancellationToken token = new())
         {
             var cachePath = Path.Combine("cache", tprDir, "data", eKey);
+            FileLocks.TryAdd(cachePath, new Lock());
+
             if (File.Exists(cachePath))
             {
                 if (new FileInfo(cachePath).Length == size)
-                    return File.ReadAllBytes(cachePath);
+                    lock (FileLocks[cachePath])
+                        return File.ReadAllBytes(cachePath);
                 else
                     File.Delete(cachePath);
             }
@@ -104,7 +113,9 @@
 
             var data = await response.Content.ReadAsByteArrayAsync(token);
             Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-            File.WriteAllBytes(cachePath, data);
+
+            lock (FileLocks[cachePath])
+                File.WriteAllBytes(cachePath, data);
             return data;
         }
 
@@ -128,11 +139,18 @@
 
         public static async Task<string> GetDecodedFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
         {
+            var cachePath = Path.Combine("cache", tprDir, type, hash + ".decoded");
+            if (File.Exists(cachePath))
+                return cachePath;
+
             var data = await DownloadFile(tprDir, type, hash, compressedSize, token);
             var decodedData = BLTE.Decode(data, decompressedSize);
-            var cachePath = Path.Combine("cache", tprDir, type, hash + ".decoded");
             Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-            await File.WriteAllBytesAsync(cachePath, decodedData, token);
+
+            FileLocks.TryAdd(cachePath, new Lock());
+            lock (FileLocks[cachePath])
+                File.WriteAllBytes(cachePath, decodedData);
+
             return cachePath;
         }
     }
