@@ -94,6 +94,14 @@ namespace TACTSharp
             return null;
         }
 
+        public RootEntry? GetEntryByLookup(ulong lookup)
+        {
+            if (entriesLookup.TryGetValue(lookup, out var entry))
+                return entry;
+
+            return null;
+        }
+
         public uint[] GetAvailableFDIDs()
         {
             return [.. entriesFDID.Keys];
