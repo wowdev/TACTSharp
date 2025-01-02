@@ -6,7 +6,7 @@ Largely based on @bloerwald's memory-mapped file reading implementations.
 Tool using the library for simple file extraction. 
 
 ## Usage
-TACTTool.exe `product`:  
+TACTTool `product`:  
 - `TACTTool.exe wow` to load retail WoW
 - `TACTTool.exe wowt` to load WoW PTR
 
