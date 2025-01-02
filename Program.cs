@@ -105,13 +105,14 @@ namespace TACTIndexTestCSharp
 
             eTimer.Restart();
 
-            foreach (var (fileDataID, fileName) in extractionTargets)
+            Parallel.ForEach(extractionTargets, (target) =>
             {
+                var (fileDataID, fileName) = target;
                 var fileEntry = rootInstance.GetEntryByFDID(fileDataID);
                 if (fileEntry == null)
                 {
                     Console.WriteLine("FileDataID " + fileDataID + " not found in root, skipping extraction..");
-                    continue;
+                    return;
                 }
 
                 if (!encoding.TryGetEKeys(fileEntry.Value.md5, out var fileEKeys) || fileEKeys == null)
@@ -120,15 +121,15 @@ namespace TACTIndexTestCSharp
                 var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(fileEKeys.Value.eKeys[0]);
                 byte[] fileBytes;
                 if (offset == -1)
-                    fileBytes = await CDN.GetFile("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), 0, fileEKeys.Value.decodedFileSize, true);
+                    fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), 0, fileEKeys.Value.decodedFileSize, true).Result;
                 else
-                    fileBytes = await CDN.GetFileFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true);
+                    fileBytes = CDN.GetFileFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true).Result;
 
                 if (!Directory.Exists(Path.Combine("output", Path.GetDirectoryName(fileName)!)))
                     Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)!));
 
-                await File.WriteAllBytesAsync(Path.Combine("output", fileName), fileBytes);
-            }
+                File.WriteAllBytes(Path.Combine("output", fileName), fileBytes);
+            });
 
             eTimer.Stop();
 
