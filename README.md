@@ -15,6 +15,8 @@ TACTTool `buildconfig(path)` `cdnconfig(path)`:
 - `TACTTool.exe D:\fakebuildconfig D:\fakecdnconfig` to load specific configs from disk
 
 Put files to extract in `extract.txt` in the same folder as the executable with the format `filedataid;filename`.  
+If you want to extract a file from the `install` manifest, either add a line with e.g. `0;WoW.exe` or just `WoW.exe`. Make sure the name matches the one in the `install` manifest exactly.  
+
 Example: To extract BattlePetAbility DB2s put the following in `extract.txt`:
 
 ```
