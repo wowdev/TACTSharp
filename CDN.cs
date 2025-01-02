@@ -45,7 +45,7 @@
             CDNServers = pings.OrderBy(p => p.ping).Select(p => p.server).ToList();
         }
 
-        private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0)
+        private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
         {
             var cachePath = Path.Combine("cache", tprDir, type, hash);
             if (File.Exists(cachePath))
@@ -60,17 +60,17 @@
 
             Console.WriteLine("Downloading " + url);
 
-            var response = await Client.GetAsync(url);
+            var response = await Client.GetAsync(url, token);
             if (!response.IsSuccessStatusCode)
                 throw new Exception("Failed to download " + url);
 
-            var data = await response.Content.ReadAsByteArrayAsync();
+            var data = await response.Content.ReadAsByteArrayAsync(token);
             Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
             File.WriteAllBytes(cachePath, data);
             return data;
         }
 
-        private static async Task<byte[]> DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size)
+        private static async Task<byte[]> DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size, CancellationToken token = new())
         {
             var cachePath = Path.Combine("cache", tprDir, "data", eKey);
             if (File.Exists(cachePath))
@@ -93,29 +93,29 @@
                 }
             };
 
-            var response = await Client.SendAsync(request);
+            var response = await Client.SendAsync(request, token);
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception("Failed to download " + url);
 
-            var data = await response.Content.ReadAsByteArrayAsync();
+            var data = await response.Content.ReadAsByteArrayAsync(token);
             Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
             File.WriteAllBytes(cachePath, data);
             return data;
         }
 
-        public static async Task<byte[]> GetFile(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false)
+        public static async Task<byte[]> GetFile(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
         {
-            var data = await DownloadFile(tprDir, type, hash, compressedSize);
+            var data = await DownloadFile(tprDir, type, hash, compressedSize, token);
             if (!decoded)
                 return data;
             else
                 return BLTE.Decode(data, decompressedSize);
         }
 
-        public static async Task<byte[]> GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize = 0, bool decoded = false)
+        public static async Task<byte[]> GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
         {
-            var data = await DownloadFileFromArchive(eKey, tprDir, archive, offset, length);
+            var data = await DownloadFileFromArchive(eKey, tprDir, archive, offset, length, token);
             if (!decoded)
                 return data;
             else
