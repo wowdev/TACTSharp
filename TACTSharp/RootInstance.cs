@@ -94,6 +94,11 @@ namespace TACTSharp
             return null;
         }
 
+        public uint[] GetAvailableFDIDs()
+        {
+            return [.. entriesFDID.Keys];
+        }
+
         unsafe public RootInstance(string path)
         {
             this.rootFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
