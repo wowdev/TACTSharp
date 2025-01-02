@@ -8,6 +8,7 @@ namespace TACTSharp
         private static readonly List<string> CDNServers = [];
         private static readonly ConcurrentDictionary<string, Lock> FileLocks = new();
 
+        // TODO: Memory mapped cache file access?
         static CDN()
         {
             var cdnsFile = Client.GetStringAsync("http://us.patch.battle.net:1119/wow/cdns").Result;
