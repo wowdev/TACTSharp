@@ -127,9 +127,7 @@ namespace TACTSharp
 
             if (encType == 'S')
             {
-                var decryptor = KeyService.SalsaInstance.CreateDecryptor(key, IV);
-
-                output = decryptor.TransformFinalBlock(data[1..], dataOffset, data.Length - 1 - dataOffset);
+                output = KeyService.SalsaInstance.CreateDecryptor(key, IV).TransformFinalBlock(data[1..], dataOffset, data.Length - 1 - dataOffset);
                 return true;
             }
             else

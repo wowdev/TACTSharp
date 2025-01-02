@@ -17,6 +17,7 @@ namespace TACTTool
                 return;
             }
 
+            #region Configs
             Config? buildConfig = null;
             Config? cdnConfig = null;
 
@@ -70,10 +71,12 @@ namespace TACTTool
 
             if (!cdnConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
                 throw new Exception("No archive group found in cdn config");
+            #endregion
 
             var totalTimer = new Stopwatch();
             totalTimer.Start();
 
+            #region Encoding
             var eTimer = new Stopwatch();
             eTimer.Start();
             var encodingPath = await CDN.GetDecodedFilePath("wow", "data", encodingKey[1], ulong.Parse(buildConfig.Values["encoding-size"][1]), ulong.Parse(buildConfig.Values["encoding-size"][0]));
@@ -84,7 +87,9 @@ namespace TACTTool
             var encoding = new EncodingInstance(encodingPath);
             eTimer.Stop();
             Console.WriteLine("Loaded encoding in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+            #endregion
 
+            #region Root
             if (!buildConfig.Values.TryGetValue("root", out var rootKey))
                 throw new Exception("No root key found in build config");
 
@@ -105,7 +110,9 @@ namespace TACTTool
             var rootInstance = new RootInstance(rootPath);
             eTimer.Stop();
             Console.WriteLine("Loaded root in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+            #endregion
 
+            #region GroupIndex
             var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
             if (!File.Exists(groupIndexPath))
                 GroupIndex.Generate(groupArchiveIndex[0], cdnConfig.Values["archives"]);
@@ -115,8 +122,28 @@ namespace TACTTool
             var groupIndex = new IndexInstance(groupIndexPath);
             gaSW.Stop();
             Console.WriteLine("Loaded group index in " + gaSW.Elapsed.TotalMilliseconds + "ms");
+            #endregion
 
-            if(!File.Exists("extract.txt"))
+            #region Install
+            if (!buildConfig.Values.TryGetValue("install", out var installKey))
+                throw new Exception("No root key found in build config");
+
+            if (!encoding.TryGetEKeys(Convert.FromHexString(installKey[0]), out var installEKeys) || installEKeys == null)
+                throw new Exception("Install key not found in encoding");
+            var installEKey = Convert.ToHexStringLower(installEKeys.Value.eKeys[0]);
+
+            eTimer.Restart();
+            var installPath = await CDN.GetDecodedFilePath("wow", "data", installEKey, 0, installEKeys.Value.decodedFileSize);
+            eTimer.Stop();
+            Console.WriteLine("Retrieved install in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+
+            eTimer.Restart();
+            var installInstance = new InstallInstance(installPath);
+            eTimer.Stop();
+            Console.WriteLine("Loaded install in " + eTimer.Elapsed.TotalMilliseconds + "ms");
+            #endregion
+
+            if (!File.Exists("extract.txt"))
             {
                 Console.WriteLine("No extract.txt found, skipping extraction..");
                 return;
@@ -126,10 +153,10 @@ namespace TACTTool
             foreach (var line in File.ReadAllLines("extract.txt"))
             {
                 var parts = line.Split(';');
-                if (parts.Length != 2)
-                    continue;
-
-                extractionTargets.Add((uint.Parse(parts[0]), parts[1]));
+                if (parts.Length == 2)
+                    extractionTargets.Add((uint.Parse(parts[0]), parts[1]));
+                else
+                    extractionTargets.Add((0, parts[0])); // Assume install
             }
 
             eTimer.Restart();
@@ -139,14 +166,50 @@ namespace TACTTool
             Parallel.ForEach(extractionTargets, (target) =>
             {
                 var (fileDataID, fileName) = target;
-                var fileEntry = rootInstance.GetEntryByFDID(fileDataID);
-                if (fileEntry == null)
+
+                byte[] targetCKey;
+
+                if (fileDataID == 0)
                 {
-                    Console.WriteLine("FileDataID " + fileDataID + " not found in root, skipping extraction..");
-                    return;
+                    var fileEntries = installInstance.Entries.Where(x => x.name.Equals(fileName, StringComparison.InvariantCultureIgnoreCase)).ToList();
+                    if (fileEntries.Count == 0)
+                    {
+                        Console.WriteLine("No results found in install for file " + fileName + ", skipping extraction..");
+                        return;
+                    }
+
+                    if (fileEntries.Count > 1)
+                    {
+                        var filter = fileEntries.Where(x => x.tags.Contains("4=US")).Select(x => x.md5);
+                        if (filter.Any())
+                        {
+                            Console.WriteLine("Multiple results found in install for file " + fileName + ", using US version..");
+                            targetCKey = filter.First();
+                        }
+                        else
+                        {
+                            Console.WriteLine("Multiple results found in install for file " + fileName + ", using first result..");
+                            targetCKey = fileEntries[0].md5;
+                        }
+                    }
+                    else
+                    {
+                        targetCKey = fileEntries[0].md5;
+                    }
+                }
+                else
+                {
+                    var fileEntry = rootInstance.GetEntryByFDID(fileDataID);
+                    if (fileEntry == null)
+                    {
+                        Console.WriteLine("FileDataID " + fileDataID + " not found in root, skipping extraction..");
+                        return;
+                    }
+
+                    targetCKey = fileEntry.Value.md5;
                 }
 
-                if (!encoding.TryGetEKeys(fileEntry.Value.md5, out var fileEKeys) || fileEKeys == null)
+                if (!encoding.TryGetEKeys(targetCKey, out var fileEKeys) || fileEKeys == null)
                     throw new Exception("EKey not found in encoding");
 
                 var (offset, size, archiveIndex) = groupIndex.GetIndexInfo(fileEKeys.Value.eKeys[0]);

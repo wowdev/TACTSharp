@@ -280,6 +280,8 @@ namespace TACTSharp
             {
                 Console.WriteLine("Read " + entriesFDID.Count + " files from root");
             }
+
+            mmapViewHandle.ReleasePointer();
         }
     }
 }
