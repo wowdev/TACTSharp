@@ -17,8 +17,8 @@
             {
                 if (line.Length == 0)
                     continue;
-                
-                if(!line.StartsWith("us|"))
+
+                if (!line.StartsWith("us|"))
                     continue;
 
                 var splitLine = line.Split('|');
@@ -43,6 +43,8 @@
             var pings = Task.WhenAll(pingTasks).Result;
 
             CDNServers = pings.OrderBy(p => p.ping).Select(p => p.server).ToList();
+
+            Console.WriteLine("Fastest CDNs in order: " + string.Join(", ", CDNServers));
         }
 
         public static async Task<string> GetProductVersions(string product)
