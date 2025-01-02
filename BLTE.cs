@@ -90,8 +90,8 @@ namespace TACTIndexTestCSharp
                     var decompSpan = decompData.AsSpan(decompOffset);
                     try
                     {
-                        var decryptedData = Decrypt(compData, chunkIndex);
-                        HandleDataBlock((char)decryptedData[0], decryptedData.AsSpan()[1..], chunkIndex, compSize, decompSize, compOffset, decompOffset, decompData);
+                        if(TryDecrypt(compData, chunkIndex, out var decryptedData))
+                            HandleDataBlock((char)decryptedData[0], decryptedData.AsSpan()[1..], chunkIndex, compSize, decompSize, compOffset, decompOffset, decompData);
                     }
                     catch (KeyNotFoundException e)
                     {
@@ -107,7 +107,7 @@ namespace TACTIndexTestCSharp
             }
         }
 
-        private static byte[] Decrypt(ReadOnlySpan<byte> data, int chunkIndex)
+        private static bool TryDecrypt(ReadOnlySpan<byte> data, int chunkIndex, out byte[] output)
         {
             byte keyNameSize = data[0];
 
@@ -142,13 +142,17 @@ namespace TACTIndexTestCSharp
             }
 
             if (!KeyService.TryGetKey(keyName, out var key))
-                throw new KeyNotFoundException("Unknown keyname " + keyName.ToString("X16"));
+            {
+                output = [];
+                return false;
+            }
 
             if (encType == 'S')
             {
                 ICryptoTransform decryptor = KeyService.SalsaInstance.CreateDecryptor(key, IV);
 
-                return decryptor.TransformFinalBlock(data[1..].ToArray(), dataOffset, data.Length - 1 - dataOffset);
+                output = decryptor.TransformFinalBlock(data[1..].ToArray(), dataOffset, data.Length - 1 - dataOffset);
+                return true;
             }
             else
             {
