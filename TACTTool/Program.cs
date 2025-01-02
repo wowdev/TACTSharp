@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
+using TACTIndexTestCSharp;
 
-namespace TACTIndexTestCSharp
+namespace TACTTool
 {
     internal class Program
     {
@@ -9,8 +10,8 @@ namespace TACTIndexTestCSharp
             if (args.Length < 1)
             {
                 Console.WriteLine("Usage:");
-                Console.WriteLine("\tTACTIndexTestCSharp <product>");
-                Console.WriteLine("\tTACTIndexTestCSharp <buildconfig(path)> <cdnconfig(path)>");
+                Console.WriteLine("\tTACTTool <product>");
+                Console.WriteLine("\tTACTTool <buildconfig(path)> <cdnconfig(path)>");
                 Console.WriteLine("Press enter to exit.");
                 Console.ReadLine();
                 return;
