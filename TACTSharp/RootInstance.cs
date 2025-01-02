@@ -99,6 +99,11 @@ namespace TACTSharp
             return [.. entriesFDID.Keys];
         }
 
+        public bool FileExistsByFDID(uint fileDataID)
+        {
+            return entriesFDID.ContainsKey(fileDataID);
+        }
+
         unsafe public RootInstance(string path)
         {
             this.rootFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
