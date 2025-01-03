@@ -1,12 +1,13 @@
 ﻿using System.CommandLine;
 using System.Diagnostics;
-using System.IO;
 using TACTSharp;
 
 namespace TACTTool
 {
     internal class Program
     {
+        private static string OutputDir = "output";
+
         static async Task Main(string[] args)
         {
             var rootCommand = new RootCommand("TACTTool - Extraction tool using the TACTSharp library");
@@ -14,7 +15,7 @@ namespace TACTTool
             var modeCommand = new Option<string>("--source", () => Settings.Source, "Data source: online or local");
             modeCommand.AddAlias("-s");
             rootCommand.AddOption(modeCommand);
-            
+
             var productOption = new Option<string?>(name: "--product", () => Settings.Product, description: "TACT product to load");
             productOption.AddAlias("-p");
             rootCommand.AddOption(productOption);
@@ -30,8 +31,12 @@ namespace TACTTool
 
             var cdnConfigOption = new Option<string?>(name: "--cdnconfig", description: "CDN config to load (hex or file on disk)");
             rootCommand.AddOption(cdnConfigOption);
-      
-            rootCommand.SetHandler(async (product, buildConfig, cdnConfig, region, baseDir) =>
+
+            var outputDirOption = new Option<string>("--output", () => OutputDir, "Output directory for extracted files");
+            outputDirOption.AddAlias("-o");
+            rootCommand.AddOption(outputDirOption);
+
+            rootCommand.SetHandler(async (product, buildConfig, cdnConfig, region, baseDir, outputDirectory) =>
             {
                 if (region != null)
                     Settings.Region = region;
@@ -42,28 +47,31 @@ namespace TACTTool
                 if (cdnConfig != null)
                     Settings.CDNConfig = cdnConfig;
 
+                if (outputDirectory != null)
+                    OutputDir = outputDirectory;
+
                 if (product != null)
                 {
                     Settings.Product = product;
 
-                    if(baseDir != null)
+                    if (baseDir != null)
                     {
                         Settings.BaseDir = baseDir;
                         Settings.Source = "local";
 
                         // Load from build.info
                         var buildInfoPath = Path.Combine(baseDir, ".build.info");
-                        if(!File.Exists(buildInfoPath))
+                        if (!File.Exists(buildInfoPath))
                             throw new Exception("No build.info found in base directory");
 
                         var buildInfo = new BuildInfo(buildInfoPath);
 
-                        if(!buildInfo.Entries.Any(x => x.Product == product))
+                        if (!buildInfo.Entries.Any(x => x.Product == product))
                             throw new Exception("No build found for product " + product);
 
                         var build = buildInfo.Entries.First(x => x.Product == product);
 
-                        if(buildConfig == null)
+                        if (buildConfig == null)
                             Settings.BuildConfig = build.BuildConfig;
 
                         if (cdnConfig == null)
@@ -87,7 +95,7 @@ namespace TACTTool
                         }
                     }
                 }
-            }, productOption, buildConfigOption, cdnConfigOption, regionOption, baseDirOption);
+            }, productOption, buildConfigOption, cdnConfigOption, regionOption, baseDirOption, outputDirOption);
 
             await rootCommand.InvokeAsync(args);
 
@@ -203,8 +211,6 @@ namespace TACTTool
 
             eTimer.Restart();
 
-            Directory.CreateDirectory("output");
-
             Parallel.ForEach(extractionTargets, (target) =>
             {
                 var (fileDataID, fileName) = target;
@@ -261,9 +267,9 @@ namespace TACTTool
                 else
                     fileBytes = CDN.GetFileFromArchive(Convert.ToHexStringLower(fileEKeys.Value.eKeys[0]), "wow", cdnConfig.Values["archives"][archiveIndex], offset, size, fileEKeys.Value.decodedFileSize, true).Result;
 
-                Directory.CreateDirectory(Path.Combine("output", Path.GetDirectoryName(fileName)!));
+                Directory.CreateDirectory(Path.Combine(OutputDir, Path.GetDirectoryName(fileName)!));
 
-                File.WriteAllBytes(Path.Combine("output", fileName), fileBytes);
+                File.WriteAllBytes(Path.Combine(OutputDir, fileName), fileBytes);
             });
 
             eTimer.Stop();
