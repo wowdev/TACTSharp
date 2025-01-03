@@ -2,7 +2,7 @@
   "profiles": {
     "TACTTool": {
       "commandName": "Project",
-      "commandLineArgs": "wow"
+      "commandLineArgs": "-p wow --basedir \"C:\\Program Files (x86)\\World of Warcraft\""
     }
   }
 }

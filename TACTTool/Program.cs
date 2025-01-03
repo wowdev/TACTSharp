@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System.CommandLine;
+using System.Diagnostics;
+using System.IO;
 using TACTSharp;
 
 namespace TACTTool
@@ -7,61 +9,101 @@ namespace TACTTool
     {
         static async Task Main(string[] args)
         {
-            if (args.Length < 1)
+            var rootCommand = new RootCommand("TACTTool - Extraction tool using the TACTSharp library");
+
+            var modeCommand = new Option<string>("--source", () => Settings.Source, "Data source: online or local");
+            modeCommand.AddAlias("-s");
+            rootCommand.AddOption(modeCommand);
+            
+            var productOption = new Option<string?>(name: "--product", () => Settings.Product, description: "TACT product to load");
+            productOption.AddAlias("-p");
+            rootCommand.AddOption(productOption);
+
+            var regionOption = new Option<string?>(name: "--region", () => Settings.Region, description: "Region to use for patch service/build selection/CDNs");
+            rootCommand.AddOption(regionOption);
+
+            var baseDirOption = new Option<string?>(name: "--basedir", () => Settings.BaseDir, description: "WoW installation folder (if available)");
+            rootCommand.AddOption(baseDirOption);
+
+            var buildConfigOption = new Option<string?>(name: "--buildconfig", description: "Build config to load (hex or file on disk)");
+            rootCommand.AddOption(buildConfigOption);
+
+            var cdnConfigOption = new Option<string?>(name: "--cdnconfig", description: "CDN config to load (hex or file on disk)");
+            rootCommand.AddOption(cdnConfigOption);
+      
+            rootCommand.SetHandler(async (product, buildConfig, cdnConfig, region, baseDir) =>
             {
-                Console.WriteLine("Usage:");
-                Console.WriteLine("\tTACTTool <product>");
-                Console.WriteLine("\tTACTTool <buildconfig(path)> <cdnconfig(path)>");
-                Console.WriteLine("Press enter to exit.");
-                Console.ReadLine();
-                return;
-            }
+                if (region != null)
+                    Settings.Region = region;
+
+                if (buildConfig != null)
+                    Settings.BuildConfig = buildConfig;
+
+                if (cdnConfig != null)
+                    Settings.CDNConfig = cdnConfig;
+
+                if (product != null)
+                {
+                    Settings.Product = product;
+
+                    if(baseDir != null)
+                    {
+                        Settings.BaseDir = baseDir;
+                        Settings.Source = "local";
+
+                        // Load from build.info
+                        var buildInfoPath = Path.Combine(baseDir, ".build.info");
+                        if(!File.Exists(buildInfoPath))
+                            throw new Exception("No build.info found in base directory");
+
+                        var buildInfo = new BuildInfo(buildInfoPath);
+
+                        if(!buildInfo.Entries.Any(x => x.Product == product))
+                            throw new Exception("No build found for product " + product);
+
+                        var build = buildInfo.Entries.First(x => x.Product == product);
+
+                        if(buildConfig == null)
+                            Settings.BuildConfig = build.BuildConfig;
+
+                        if (cdnConfig == null)
+                            Settings.CDNConfig = build.CDNConfig;
+                    }
+                    else
+                    {
+                        var versions = await CDN.GetProductVersions(product);
+                        foreach (var line in versions.Split('\n'))
+                        {
+                            if (!line.StartsWith(Settings.Region + "|"))
+                                continue;
+
+                            var splitLine = line.Split('|');
+
+                            if (buildConfig == null)
+                                Settings.BuildConfig = splitLine[1];
+
+                            if (cdnConfig == null)
+                                Settings.CDNConfig = splitLine[2];
+                        }
+                    }
+                }
+            }, productOption, buildConfigOption, cdnConfigOption, regionOption, baseDirOption);
+
+            await rootCommand.InvokeAsync(args);
 
             #region Configs
             Config? buildConfig = null;
+            if (File.Exists(Settings.BuildConfig))
+                buildConfig = new Config(Settings.BuildConfig, true);
+            else if (Settings.BuildConfig.Length == 32 && Settings.BuildConfig.All(c => "0123456789abcdef".Contains(c)))
+                buildConfig = new Config(Settings.BuildConfig, false);
+
             Config? cdnConfig = null;
+            if (File.Exists(Settings.CDNConfig))
+                cdnConfig = new Config(Settings.CDNConfig, true);
+            else if (Settings.CDNConfig.Length == 32 && Settings.BuildConfig.All(c => "0123456789abcdef".Contains(c)))
+                cdnConfig = new Config(Settings.CDNConfig, false);
 
-            if (args.Length == 1)
-            {
-                Console.WriteLine("Using product " + args[0]);
-                var versions = await CDN.GetProductVersions(args[0]);
-                foreach (var line in versions.Split('\n'))
-                {
-                    // TODO: Configurable?
-                    if (!line.StartsWith("us|"))
-                        continue;
-
-                    var splitLine = line.Split('|');
-                    if (splitLine.Length < 2)
-                        continue;
-
-                    Console.WriteLine("Using buildconfig " + splitLine[1] + " and cdnconfig " + splitLine[2]);
-                    buildConfig = new Config(splitLine[1], false);
-                    cdnConfig = new Config(splitLine[2], false);
-                }
-            }
-            else if (args.Length == 2)
-            {
-                Console.WriteLine("Using buildconfig " + args[0] + " and cdnconfig " + args[1]);
-
-                if (File.Exists(args[0]))
-                    buildConfig = new Config(args[0], true);
-                else if (args[0].Length == 32 && args[0].All(c => "0123456789abcdef".Contains(c)))
-                    buildConfig = new Config(args[0], false);
-                else
-                    throw new Exception("Invalid buildconfig(path)");
-
-                if (File.Exists(args[1]))
-                    cdnConfig = new Config(args[1], true);
-                else if (args[1].Length == 32 && args[1].All(c => "0123456789abcdef".Contains(c)))
-                    cdnConfig = new Config(args[1], false);
-                else
-                    throw new Exception("Invalid buildconfig(path)");
-            }
-            else
-            {
-                throw new Exception("Invalid number of arguments");
-            }
 
             if (buildConfig == null || cdnConfig == null)
                 throw new Exception("Failed to load configs");
