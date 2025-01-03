@@ -299,15 +299,15 @@ namespace TACTSharp
                 blockCount++;
             }
 
-            if(newRoot)
-            {
-                Console.WriteLine("Read " + entriesFDID.Count + "/" + totalFiles + " total files from root");
-                Console.WriteLine("Read " + namedCount + "/" + namedFiles + " named files from root");
-            }
-            else
-            {
-                Console.WriteLine("Read " + entriesFDID.Count + " files from root");
-            }
+            //if(newRoot)
+            //{
+            //    Console.WriteLine("Read " + entriesFDID.Count + "/" + totalFiles + " total files from root");
+            //    Console.WriteLine("Read " + namedCount + "/" + namedFiles + " named files from root");
+            //}
+            //else
+            //{
+            //    Console.WriteLine("Read " + entriesFDID.Count + " files from root");
+            //}
 
             mmapViewHandle.ReleasePointer();
         }
