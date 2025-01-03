@@ -11,14 +11,14 @@ namespace TACTSharp
         // TODO: Memory mapped cache file access?
         static CDN()
         {
-            var cdnsFile = Client.GetStringAsync("http://us.patch.battle.net:1119/wow/cdns").Result;
+            var cdnsFile = Client.GetStringAsync($"http://{Settings.Region}.patch.battle.net:1119/wow/cdns").Result;
 
             foreach (var line in cdnsFile.Split('\n'))
             {
                 if (line.Length == 0)
                     continue;
 
-                if (!line.StartsWith("us|"))
+                if (!line.StartsWith(Settings.Region + "|"))
                     continue;
 
                 var splitLine = line.Split('|');
@@ -49,7 +49,7 @@ namespace TACTSharp
 
         public static async Task<string> GetProductVersions(string product)
         {
-            return await Client.GetStringAsync($"https://us.version.battle.net/{product}/versions");
+            return await Client.GetStringAsync($"https://{Settings.Region}.version.battle.net/{product}/versions");
         }
 
         private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
