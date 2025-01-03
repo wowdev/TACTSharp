@@ -13,6 +13,14 @@ namespace TACTTool
             #region CLI switches
             var rootCommand = new RootCommand("TACTTool - Extraction tool using the TACTSharp library");
 
+            var buildConfigOption = new Option<string?>(name: "--buildconfig", description: "Build config to load (hex or file on disk)");
+            buildConfigOption.AddAlias("-b");
+            rootCommand.AddOption(buildConfigOption);
+
+            var cdnConfigOption = new Option<string?>(name: "--cdnconfig", description: "CDN config to load (hex or file on disk)");
+            cdnConfigOption.AddAlias("-c");
+            rootCommand.AddOption(cdnConfigOption);
+
             var modeCommand = new Option<string>("--source", () => Settings.Source, "Data source: online or local");
             modeCommand.AddAlias("-s");
             rootCommand.AddOption(modeCommand);
@@ -22,20 +30,15 @@ namespace TACTTool
             rootCommand.AddOption(productOption);
 
             var regionOption = new Option<string?>(name: "--region", () => Settings.Region, description: "Region to use for patch service/build selection/CDNs");
+            regionOption.AddAlias("-r");
             rootCommand.AddOption(regionOption);
-
-            var baseDirOption = new Option<string?>(name: "--basedir", () => Settings.BaseDir, description: "WoW installation folder (if available)");
-            rootCommand.AddOption(baseDirOption);
-
-            var buildConfigOption = new Option<string?>(name: "--buildconfig", description: "Build config to load (hex or file on disk)");
-            rootCommand.AddOption(buildConfigOption);
-
-            var cdnConfigOption = new Option<string?>(name: "--cdnconfig", description: "CDN config to load (hex or file on disk)");
-            rootCommand.AddOption(cdnConfigOption);
 
             var outputDirOption = new Option<string>("--output", () => OutputDir, "Output directory for extracted files");
             outputDirOption.AddAlias("-o");
             rootCommand.AddOption(outputDirOption);
+
+            var baseDirOption = new Option<string?>(name: "--basedir", description: "WoW installation folder (if available) (NYI)");
+            rootCommand.AddOption(baseDirOption);
 
             rootCommand.SetHandler(async (product, buildConfig, cdnConfig, region, baseDir, outputDirectory) =>
             {
@@ -99,6 +102,12 @@ namespace TACTTool
             }, productOption, buildConfigOption, cdnConfigOption, regionOption, baseDirOption, outputDirOption);
 
             await rootCommand.InvokeAsync(args);
+
+            if(Settings.BuildConfig == null || Settings.CDNConfig == null)
+            {
+                Console.WriteLine("Missing build or CDN config, exiting..");
+                return;
+            }
             #endregion
 
             var buildTimer = new Stopwatch();
