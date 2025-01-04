@@ -34,7 +34,7 @@ namespace TACTTool
             cdnConfigOption.AddAlias("-c");
             rootCommand.AddOption(cdnConfigOption);
 
-            var modeCommand = new Option<string>("--source", () => Settings.Source, "Data source: online or local");
+            var modeCommand = new Option<string>("--source", () => Settings.Source, "Data source: online or local (NYI)");
             modeCommand.AddAlias("-s");
             rootCommand.AddOption(modeCommand);
 
@@ -54,7 +54,7 @@ namespace TACTTool
             inputValueOption.AddAlias("-i");
             rootCommand.AddOption(inputValueOption);
 
-            var outputDirOption = new Option<string>("--output", "Output path for extracted files, directory for list mode (but will default to 'output'), output filename for other input modes");
+            var outputDirOption = new Option<string>("--output", "Output path for extracted files, folder for list mode (defaults to 'output' folder), output filename for other input modes (defaults to input value as filename)");
             outputDirOption.AddAlias("-o");
             rootCommand.AddOption(outputDirOption);
 
@@ -83,6 +83,7 @@ namespace TACTTool
                         "ckey" => InputMode.CKey,
                         "id" => InputMode.FDID,
                         "fdid" => InputMode.FDID,
+                        "install" => InputMode.FileName,
                         "filename" => InputMode.FileName,
                         "name" => InputMode.FileName,
                         _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
