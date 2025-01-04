@@ -146,8 +146,6 @@ namespace TACTSharp
                 }
             }
 
-            Console.WriteLine("EKey not found for CKey " + Convert.ToHexStringLower(cKeyTarget) + " but should have been in page index " + pageIndex);
-
             return null;
         }
 
@@ -218,7 +216,6 @@ namespace TACTSharp
                 }
             }
 
-            Console.WriteLine("ESpec not found for EKey " + Convert.ToHexStringLower(eKeyTarget) + " but should have been in page index " + pageIndex);
             return null;
         }
 
