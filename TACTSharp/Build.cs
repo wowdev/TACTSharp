@@ -51,7 +51,7 @@
             timer.Restart();
             if (!CDNConfig.Values.TryGetValue("file-index", out var fileIndex))
                 throw new Exception("No file index found in CDN config");
-            
+
             var fileIndexPath = await CDN.GetFilePath("wow", "data", fileIndex[0] + ".index");
             FileIndex = new IndexInstance(fileIndexPath);
             timer.Stop();
@@ -83,6 +83,59 @@
             Install = new InstallInstance(await CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(installEKeys.Value.eKeys[0]), 0, installEKeys.Value.decodedFileSize));
             timer.Stop();
             Console.WriteLine("Install loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+        }
+
+        public byte[] OpenFileByFDID(uint fileDataID)
+        {
+            if (Root == null)
+                throw new Exception("Root not loaded");
+
+            var fileData = Root.GetEntryByFDID(fileDataID) ?? throw new Exception("File not found in root");
+
+            return OpenFileByCKey(fileData.md5);
+        }
+
+        public byte[] OpenFileByCKey(string cKey) => OpenFileByCKey(Convert.FromHexString(cKey));
+
+        public byte[] OpenFileByCKey(byte[] cKey)
+        {
+            if (Encoding == null)
+                throw new Exception("Encoding not loaded");
+
+            var encodingResult = Encoding.GetEKeys(cKey) ?? throw new Exception("File not found in encoding");
+
+            return OpenFileByEKey(encodingResult.eKeys[0], encodingResult.decodedFileSize);
+        }
+
+        public byte[] OpenFileByEKey(string eKey, ulong decodedSize = 0) => OpenFileByEKey(Convert.FromHexString(eKey), decodedSize);
+
+        public byte[] OpenFileByEKey(byte[] eKey, ulong decodedSize = 0)
+        {
+            if (GroupIndex == null || FileIndex == null)
+                throw new Exception("Indexes not loaded");
+
+            var (offset, size, archiveIndex) = GroupIndex.GetIndexInfo(eKey);
+            byte[] fileBytes;
+
+            if (offset == -1)
+            {
+                var fileIndexEntry = FileIndex.GetIndexInfo(eKey);
+                if (fileIndexEntry.size == -1)
+                {
+                    Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
+                    fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(eKey), 0, decodedSize, true).Result;
+                }
+                else
+                {
+                    fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true).Result;
+                }
+            }
+            else
+            {
+                fileBytes = CDN.GetFileFromArchive(Convert.ToHexStringLower(eKey), "wow", CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true).Result;
+            }
+
+            return fileBytes;
         }
     }
 }
