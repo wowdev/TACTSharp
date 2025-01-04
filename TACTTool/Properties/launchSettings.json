@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "TACTTool": {
-      "commandName": "Project",
-      "commandLineArgs": "-p wow"
-    }
-  }
-}
