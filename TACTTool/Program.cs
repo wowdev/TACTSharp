@@ -214,10 +214,33 @@ namespace TACTTool
 
                 var (offset, size, archiveIndex) = build.GroupIndex.GetIndexInfo(eKey);
                 byte[] fileBytes;
-                if (offset == -1)
-                    fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(eKey), 0, decodedSize, true).Result;
-                else
-                    fileBytes = CDN.GetFileFromArchive(Convert.ToHexStringLower(eKey), "wow", build.CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true).Result;
+
+                try
+                {
+                    if (offset == -1)
+                    {
+                        var fileIndexEntry = build.FileIndex.GetIndexInfo(eKey);
+                        if (fileIndexEntry.size == -1)
+                        {
+                            Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
+                            fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(eKey), 0, decodedSize, true).Result;
+                        }
+                        else
+                        {
+                            fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true).Result;
+                        }
+                    }
+                    else
+                    {
+                        fileBytes = CDN.GetFileFromArchive(Convert.ToHexStringLower(eKey), "wow", build.CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true).Result;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to extract " + fileName + " (" + Convert.ToHexStringLower(eKey) + "): " + e.Message);
+                    return;
+                }
+
 
                 if (Mode == InputMode.List)
                 {

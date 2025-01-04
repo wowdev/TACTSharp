@@ -9,6 +9,7 @@
         public RootInstance? Root { get; private set; }
         public InstallInstance? Install { get; private set; }
         public IndexInstance? GroupIndex { get; private set; }
+        public IndexInstance? FileIndex { get; private set; }
 
         public BuildInstance(string buildConfig, string cdnConfig)
         {
@@ -46,6 +47,15 @@
             GroupIndex = new IndexInstance(groupIndexPath);
             timer.Stop();
             Console.WriteLine("Group index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+
+            timer.Restart();
+            if (!CDNConfig.Values.TryGetValue("file-index", out var fileIndex))
+                throw new Exception("No file index found in CDN config");
+            
+            var fileIndexPath = await CDN.GetFilePath("wow", "data", fileIndex[0] + ".index");
+            FileIndex = new IndexInstance(fileIndexPath);
+            timer.Stop();
+            Console.WriteLine("File index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
             timer.Restart();
             Encoding = new EncodingInstance(await CDN.GetDecodedFilePath("wow", "data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), ulong.Parse(BuildConfig.Values["encoding-size"][0])));
