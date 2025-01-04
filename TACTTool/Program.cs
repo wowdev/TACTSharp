@@ -54,7 +54,7 @@ namespace TACTTool
             inputValueOption.AddAlias("-i");
             rootCommand.AddOption(inputValueOption);
 
-            var outputDirOption = new Option<string>("--output", "Output path for extracted files, folder for list mode (defaults to 'output' folder), output filename for other input modes (defaults to input value as filename)");
+            var outputDirOption = new Option<string>("--output", "Output path for extracted files, folder for list mode (defaults to 'extract' folder), output filename for other input modes (defaults to input value as filename)");
             outputDirOption.AddAlias("-o");
             rootCommand.AddOption(outputDirOption);
 
