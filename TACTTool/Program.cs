@@ -34,10 +34,6 @@ namespace TACTTool
             cdnConfigOption.AddAlias("-c");
             rootCommand.AddOption(cdnConfigOption);
 
-            var modeCommand = new Option<string>("--source", () => Settings.Source, "Data source: online or local (NYI)");
-            modeCommand.AddAlias("-s");
-            rootCommand.AddOption(modeCommand);
-
             var productOption = new Option<string?>(name: "--product", () => Settings.Product, description: "TACT product to load");
             productOption.AddAlias("-p");
             rootCommand.AddOption(productOption);
@@ -58,7 +54,7 @@ namespace TACTTool
             outputDirOption.AddAlias("-o");
             rootCommand.AddOption(outputDirOption);
 
-            var baseDirOption = new Option<string?>(name: "--basedir", description: "WoW installation folder (if available) (NYI)");
+            var baseDirOption = new Option<string?>(name: "--basedir", description: "WoW installation folder to use as source for build info and read-only file cache (if available)");
             rootCommand.AddOption(baseDirOption);
 
             rootCommand.SetHandler(async (product, buildConfig, cdnConfig, region, baseDir, inputMode, inputValue, output) =>
@@ -117,7 +113,6 @@ namespace TACTTool
                     if (baseDir != null)
                     {
                         Settings.BaseDir = baseDir;
-                        Settings.Source = "local";
 
                         // Load from build.info
                         var buildInfoPath = Path.Combine(baseDir, ".build.info");

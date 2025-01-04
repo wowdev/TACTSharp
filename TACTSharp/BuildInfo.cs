@@ -1,6 +1,5 @@
 ﻿namespace TACTSharp
 {
-
     public class BuildInfo
     {
         public struct AvailableBuild
@@ -55,6 +54,9 @@
 
                 if (headerMap.TryGetValue("KeyRing", out byte keyRing))
                     availableBuild.KeyRing = splitLine[keyRing];
+
+                if (headerMap.TryGetValue("CDN Hosts", out byte cdnHosts))
+                    CDN.SetCDNs(splitLine[cdnHosts].Split(' '));
 
                 if (folderMap.TryGetValue(availableBuild.Product, out string folder))
                     availableBuild.Folder = folder;

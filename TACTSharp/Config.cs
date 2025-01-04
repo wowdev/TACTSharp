@@ -1,4 +1,6 @@
-﻿namespace TACTSharp
+﻿using System.Text;
+
+namespace TACTSharp
 {
     public class Config
     {
@@ -7,15 +9,21 @@
         {
             if (!isFile)
             {
-                _ = CDN.GetFile("wow", "config", path).Result;
-                path = Path.Combine("cache", "wow", "config", path);
+                foreach (var line in Encoding.UTF8.GetString(CDN.GetFile("wow", "config", path).Result).Split('\n'))
+                {
+                    var splitLine = line.Split('=');
+                    if (splitLine.Length > 1)
+                        Values.Add(splitLine[0].Trim(), splitLine[1].Trim().Split(' '));
+                }
             }
-
-            foreach (var line in File.ReadAllLines(path))
+            else
             {
-                var splitLine = line.Split('=');
-                if (splitLine.Length > 1)
-                    Values.Add(splitLine[0].Trim(), splitLine[1].Trim().Split(' '));
+                foreach (var line in File.ReadAllLines(path))
+                {
+                    var splitLine = line.Split('=');
+                    if (splitLine.Length > 1)
+                        Values.Add(splitLine[0].Trim(), splitLine[1].Trim().Split(' '));
+                }
             }
         }
     }

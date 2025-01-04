@@ -1,4 +1,6 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO.MemoryMappedFiles;
 
 namespace TACTSharp
 {
@@ -6,12 +8,42 @@ namespace TACTSharp
     {
         private static readonly HttpClient Client = new();
         private static readonly List<string> CDNServers = [];
-        private static readonly ConcurrentDictionary<string, Lock> FileLocks = new();
+        private static readonly ConcurrentDictionary<string, Lock> FileLocks = [];
+        private static bool HasLocal = false;
+        private static readonly Dictionary<byte, CASCIndexInstance> CASCIndexInstances = [];
 
         // TODO: Memory mapped cache file access?
         // TODO: Product is build-specific so that might not be good to have statically in Settings/used below
         static CDN()
         {
+            if (Settings.BaseDir != null)
+            {
+                try
+                {
+                    var localTimer = new Stopwatch();
+                    localTimer.Start();
+                    LoadCASCIndices();
+                    localTimer.Stop();
+                    Console.WriteLine("Loaded local CASC indices in " + Math.Round(localTimer.Elapsed.TotalMilliseconds) + "ms");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to load CASC indices: " + e.Message);
+                }
+            }
+        }
+
+        public static void SetCDNs(string[] cdns)
+        {
+            foreach (var cdn in cdns)
+                if (!cdns.Contains(cdn))
+                    CDNServers.Add(cdn);
+        }
+
+        private static void LoadCDNs()
+        {
+            var timer = new Stopwatch();
+            timer.Start();
             var cdnsFile = Client.GetStringAsync($"http://{Settings.Region}.patch.battle.net:1119/{Settings.Product}/cdns").Result;
 
             foreach (var line in cdnsFile.Split('\n'))
@@ -36,16 +68,39 @@ namespace TACTSharp
             {
                 pingTasks.Add(Task.Run(() =>
                 {
-                    var ping = new System.Net.NetworkInformation.Ping().Send(server).RoundtripTime;
+                    var ping = new System.Net.NetworkInformation.Ping().Send(server, 400).RoundtripTime;
+                    Console.WriteLine("Ping to " + server + ": " + ping + "ms");
                     return (server, ping);
                 }));
             }
 
             var pings = Task.WhenAll(pingTasks).Result;
 
-            CDNServers = pings.OrderBy(p => p.ping).Select(p => p.server).ToList();
+            CDNServers.AddRange(pings.OrderBy(p => p.ping).Select(p => p.server).ToList());
 
-            Console.WriteLine("Fastest CDNs in order: " + string.Join(", ", CDNServers));
+            timer.Stop();
+            Console.WriteLine("Pinged " + CDNServers.Count + " in " + Math.Round(timer.Elapsed.TotalMilliseconds) + "ms, fastest CDNs in order: " + string.Join(", ", CDNServers));
+        }
+        private static void LoadCASCIndices()
+        {
+            if (Settings.BaseDir != null)
+            {
+                var dataDir = Path.Combine(Settings.BaseDir, "Data", "data");
+                if (Directory.Exists(dataDir))
+                {
+                    var indexFiles = Directory.GetFiles(dataDir, "*.idx");
+                    foreach (var indexFile in indexFiles)
+                    {
+                        if (indexFile.Contains("tempfile"))
+                            continue;
+
+                        var indexBucket = Convert.FromHexString(Path.GetFileNameWithoutExtension(indexFile)[0..2])[0];
+                        CASCIndexInstances.TryAdd(indexBucket, new CASCIndexInstance(indexFile));
+                    }
+
+                    HasLocal = true;
+                }
+            }
         }
 
         public static async Task<string> GetProductVersions(string product)
@@ -55,6 +110,27 @@ namespace TACTSharp
 
         private static async Task<byte[]> DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
         {
+            if (HasLocal)
+            {
+                if (type == "data" && hash.EndsWith(".index"))
+                {
+                    var localIndexPath = Path.Combine(Settings.BaseDir, "Data", "indices", hash);
+                    if (File.Exists(localIndexPath))
+                        return File.ReadAllBytes(localIndexPath);
+                }
+                else if (type == "config")
+                {
+                    var localConfigPath = Path.Combine(Settings.BaseDir, "Data", "config", hash[0] + "" + hash[1], hash[2] + "" + hash[3], hash);
+                    if (File.Exists(localConfigPath))
+                        return File.ReadAllBytes(localConfigPath);
+                }
+                else
+                {
+                    if (TryGetLocalFile(hash, out var data))
+                        return data.ToArray();
+                }
+            }
+
             var cachePath = Path.Combine("cache", tprDir, type, hash);
             FileLocks.TryAdd(cachePath, new Lock());
 
@@ -66,6 +142,9 @@ namespace TACTSharp
                     lock (FileLocks[cachePath])
                         return File.ReadAllBytes(cachePath);
             }
+
+            if (CDNServers.Count == 0)
+                LoadCDNs();
 
             var success = false;
             for (var i = 0; i < CDNServers.Count; i++)
@@ -104,8 +183,54 @@ namespace TACTSharp
             return null;
         }
 
+        public static unsafe bool TryGetLocalFile(string eKey, out ReadOnlySpan<byte> data)
+        {
+            var eKeyBytes = Convert.FromHexString(eKey);
+            var i = eKeyBytes[0] ^ eKeyBytes[1] ^ eKeyBytes[2] ^ eKeyBytes[3] ^ eKeyBytes[4] ^ eKeyBytes[5] ^ eKeyBytes[6] ^ eKeyBytes[7] ^ eKeyBytes[8];
+            var indexBucket = (i & 0xf) ^ (i >> 4);
+
+            var targetIndex = CASCIndexInstances[(byte)indexBucket];
+            var (archiveOffset, archiveSize, archiveIndex) = targetIndex.GetIndexInfo(Convert.FromHexString(eKey));
+            if (archiveOffset != -1)
+            {
+                // We will probably want to cache these but battle.net scares me so I'm not going to do it right now
+                var archivePath = Path.Combine(Settings.BaseDir, "Data", "data", "data." + archiveIndex.ToString().PadLeft(3, '0'));
+                using (var archive = MemoryMappedFile.CreateFromFile(archivePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
+                using (var accessor = archive.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
+                using (var mmapViewHandle = accessor.SafeMemoryMappedViewHandle)
+                {
+                    byte* ptr = null;
+                    try
+                    {
+                        mmapViewHandle.AcquirePointer(ref ptr);
+
+                        data = new ReadOnlySpan<byte>(ptr + archiveOffset, archiveSize).ToArray();
+                        return true;
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Failed to read local file: " + e.Message);
+                        data = null;
+                        return false;
+                    }
+                    finally
+                    {
+                        mmapViewHandle.ReleasePointer();
+                    }
+                }
+            }
+            data = null;
+            return false;
+        }
+
         private static async Task<byte[]> DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size, CancellationToken token = new())
         {
+            if (HasLocal)
+            {
+                if (TryGetLocalFile(eKey, out var data))
+                    return data.ToArray();
+            }
+
             var cachePath = Path.Combine("cache", tprDir, "data", eKey);
             FileLocks.TryAdd(cachePath, new Lock());
 
@@ -117,6 +242,9 @@ namespace TACTSharp
                 else
                     File.Delete(cachePath);
             }
+
+            if (CDNServers.Count == 0)
+                LoadCDNs();
 
             var success = false;
             for (var i = 0; i < CDNServers.Count; i++)

@@ -40,11 +40,17 @@
             if (!CDNConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
                 throw new Exception("No group archive index found in CDN config");
 
-            var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
-            if (!File.Exists(groupIndexPath))
-                TACTSharp.GroupIndex.Generate(groupArchiveIndex[0], CDNConfig.Values["archives"]);
-
-            GroupIndex = new IndexInstance(groupIndexPath);
+            if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", groupArchiveIndex[0] + ".index")))
+            {
+                GroupIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "Data", "indices", groupArchiveIndex[0] + ".index"));
+            }
+            else
+            {
+                var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
+                if (!File.Exists(groupIndexPath))
+                    TACTSharp.GroupIndex.Generate(groupArchiveIndex[0], CDNConfig.Values["archives"]);
+                GroupIndex = new IndexInstance(groupIndexPath);
+            }
             timer.Stop();
             Console.WriteLine("Group index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
@@ -52,8 +58,16 @@
             if (!CDNConfig.Values.TryGetValue("file-index", out var fileIndex))
                 throw new Exception("No file index found in CDN config");
 
-            var fileIndexPath = await CDN.GetFilePath("wow", "data", fileIndex[0] + ".index");
-            FileIndex = new IndexInstance(fileIndexPath);
+            if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", fileIndex[0] + ".index")))
+            {
+                FileIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "Data", "indices", fileIndex[0] + ".index"));
+            }
+            else
+            {
+                var fileIndexPath = await CDN.GetFilePath("wow", "data", fileIndex[0] + ".index");
+                FileIndex = new IndexInstance(fileIndexPath);
+            }
+
             timer.Stop();
             Console.WriteLine("File index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
