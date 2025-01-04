@@ -16,30 +16,55 @@ Usage:
 Options:
   -b, --buildconfig <buildconfig>  Build config to load (hex or file on disk)
   -c, --cdnconfig <cdnconfig>      CDN config to load (hex or file on disk)
-  -s, --source <source>            Data source: online or local [default: online]
+  -s, --source <source>            Data source: online or local (NYI) [default: online]
   -p, --product <product>          TACT product to load [default: wow]
   -r, --region <region>            Region to use for patch service/build selection/CDNs [default: us]
-  -o, --output <output>            Output directory for extracted files [default: output]
+  -m, --mode <mode>                Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)
+  -i, --inputvalue <inputvalue>    Input value for extraction
+  -o, --output <output>            Output path for extracted files, folder for list mode (defaults to 'output' folder),
+                                   output filename for other input modes (defaults to input value as filename)
   --basedir <basedir>              WoW installation folder (if available) (NYI)
   --version                        Show version information
   -?, -h, --help                   Show help and usage information
 ```
+
 ### Examples
-- `TACTTool --product wow` to load retail WoW
-- `TACTTool --buildconfig 0c245919b5294f12f4c65238b15f550c --cdnconfig cd18191b8928c33bf24b962e9330460f` to load 11.0.7.58238 (Retail)
-- `TACTTool -b D:\fakebuildconfig -c D:\fakecdnconfig` to load specific configs from disk (with alias arguments for buildconfig/cdnconfig)
+#### FileDataID
+You can use either `fdid` or `id` modes to extract specific FileDataIDs from the client.
+- `TACTTool -m fdid -i 53188` extracts FileDataID 53188 from Retail WoW to `./53188`
+- `TACTTool -m fdid -i 53188 -o "warrior terrace.mp3"` extracts FileDataID 53188 from Retail WoW to `./warrior terrace.mp3`
 
-### Extraction
-Put files to extract in `extract.txt` in the same folder as the executable with the format `filedataid;filename`.  
-> Note: If you want to extract a file from the `install` manifest, either add a line with e.g. `0;WoW.exe` or just `WoW.exe`. Make sure the name matches the one in the `install` manifest exactly.  
+#### Filename
+You can use either `name`, `filename` or `install` modes to extract files from the `install` manifest based on filename. 
+- `TACTTool -m name -i Wow.exe` extracts Wow.exe from Retail WoW `./Wow.exe `
+- `TACTTool -p wowt -m name -i WowT.exe` extracts WowT.exe from WoW PTR to `./WowT.exe `
 
-Example: To extract BattlePetAbility DB2s put the following in `extract.txt`:
+#### EKey/CKey
+You can use either `ekey` or `ehash` to extract files by their EKey or you can use `ckey` or `chash` to extract files by their CKey.
+- `TACTTool -m ckey -i 7fa7faa0fdece01a838af3c4005f7f69` extracts CKey `7fa7faa0fdece01a838af3c4005f7f69` to `./7fa7faa0fdece01a838af3c4005f7f69`
+- `TACTTool -m ckey -i 7fa7faa0fdece01a838af3c4005f7f69 -o BattlePetAbilityEffect.db2` extracts CKey `7fa7faa0fdece01a838af3c4005f7f69` to `./BattlePetAbilityEffect.db2`
 
+#### List
+- `TACTTool -m list -i pathtolist.txt` will read `pathtolist.txt` and extract files to the `extract` folder in the current working directory.
+- `TACTTool -m list -i pathtolist.txt -o D:/myoutput` will read `pathtolist.txt` and extract files to the `D:/myoutput` folder.
+
+Put files to extract in a plain text file in the below format. Similar modes as above are supported. Not giving a mode or FDID assumes it is using the `filename` mode. An additional part can be used to set the output filename.  
+These are all valid lines:
 ```
+install;WoW.exe
+install;Wow.exe;Wow-but-I-wanted-to-rename-it.exe
+WoW.exe
+Wow.exe;Wow-maybe-this-name-is-better.exe
+ckey;7fa7faa0fdece01a838af3c4005f7f69
+ckey;7fa7faa0fdece01a838af3c4005f7f69;BattlePetAbilityEffect.db2
+ekey;00b797ea435427185f33466495855656
+ekey;00b797ea435427185f33466495855656;SomeFile.bytes
 801575;DBFilesClient/BattlePetAbilityEffect.db2
-801576;DBFilesClient/BattlePetAbilityState.db2
-801577;DBFilesClient/BattlePetAbilityTurn.db2
-841610;DBFilesClient/BattlePetAbility.db2
+801575;BattlePetAbilityEffect.db2
 ```
+
+
+
+
 # Support
 Only tested on WoW, other products not supported.
