@@ -112,22 +112,29 @@ namespace TACTSharp
         {
             if (HasLocal)
             {
-                if (type == "data" && hash.EndsWith(".index"))
+                try
                 {
-                    var localIndexPath = Path.Combine(Settings.BaseDir, "Data", "indices", hash);
-                    if (File.Exists(localIndexPath))
-                        return File.ReadAllBytes(localIndexPath);
+                    if (type == "data" && hash.EndsWith(".index"))
+                    {
+                        var localIndexPath = Path.Combine(Settings.BaseDir, "Data", "indices", hash);
+                        if (File.Exists(localIndexPath))
+                            return File.ReadAllBytes(localIndexPath);
+                    }
+                    else if (type == "config")
+                    {
+                        var localConfigPath = Path.Combine(Settings.BaseDir, "Data", "config", hash[0] + "" + hash[1], hash[2] + "" + hash[3], hash);
+                        if (File.Exists(localConfigPath))
+                            return File.ReadAllBytes(localConfigPath);
+                    }
+                    else
+                    {
+                        if (TryGetLocalFile(hash, out var data))
+                            return data.ToArray();
+                    }
                 }
-                else if (type == "config")
+                catch (Exception e)
                 {
-                    var localConfigPath = Path.Combine(Settings.BaseDir, "Data", "config", hash[0] + "" + hash[1], hash[2] + "" + hash[3], hash);
-                    if (File.Exists(localConfigPath))
-                        return File.ReadAllBytes(localConfigPath);
-                }
-                else
-                {
-                    if (TryGetLocalFile(hash, out var data))
-                        return data.ToArray();
+                    Console.WriteLine("Failed to read local file: " + e.Message);
                 }
             }
 
@@ -227,8 +234,15 @@ namespace TACTSharp
         {
             if (HasLocal)
             {
-                if (TryGetLocalFile(eKey, out var data))
-                    return data.ToArray();
+                try
+                {
+                    if (TryGetLocalFile(eKey, out var data))
+                        return data.ToArray();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to read local file: " + e.Message);
+                }
             }
 
             var cachePath = Path.Combine("cache", tprDir, "data", eKey);
