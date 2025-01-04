@@ -46,7 +46,7 @@ namespace TACTTool
             regionOption.AddAlias("-r");
             rootCommand.AddOption(regionOption);
 
-            var inputModeOption = new Option<string>("--inputmode", "Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)");
+            var inputModeOption = new Option<string>("--mode", "Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)");
             inputModeOption.AddAlias("-m");
             rootCommand.AddOption(inputModeOption);
 
