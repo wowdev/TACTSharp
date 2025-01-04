@@ -202,6 +202,8 @@ namespace TACTSharp
             {
                 // We will probably want to cache these but battle.net scares me so I'm not going to do it right now
                 var archivePath = Path.Combine(Settings.BaseDir, "Data", "data", "data." + archiveIndex.ToString().PadLeft(3, '0'));
+                var archiveLength = new FileInfo(archivePath).Length;
+
                 using (var archive = MemoryMappedFile.CreateFromFile(archivePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
                 using (var accessor = archive.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
                 using (var mmapViewHandle = accessor.SafeMemoryMappedViewHandle)
@@ -210,6 +212,13 @@ namespace TACTSharp
                     try
                     {
                         mmapViewHandle.AcquirePointer(ref ptr);
+
+                        if(archiveOffset + archiveSize > archiveLength)
+                        {
+                            Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
+                            data = null;
+                            return false;
+                        }
 
                         data = new ReadOnlySpan<byte>(ptr + archiveOffset, archiveSize).ToArray();
                         return true;
