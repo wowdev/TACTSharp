@@ -67,19 +67,41 @@ namespace TACTSharp
                         return File.ReadAllBytes(cachePath);
             }
 
-            var url = $"http://{CDNServers[0]}/tpr/{tprDir}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
+            var success = false;
+            for (var i = 0; i < CDNServers.Count; i++)
+            {
+                try
+                {
+                    var url = $"http://{CDNServers[i]}/tpr/{tprDir}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
-            Console.WriteLine("Downloading " + url);
+                    Console.WriteLine("Downloading " + url);
 
-            var response = await Client.GetAsync(url, token);
-            if (!response.IsSuccessStatusCode)
-                throw new Exception("Failed to download " + url);
+                    var response = await Client.GetAsync(url, token);
+                    if (!response.IsSuccessStatusCode)
+                        throw new Exception("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
 
-            var data = await response.Content.ReadAsByteArrayAsync(token);
-            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-            lock (FileLocks[cachePath])
-                File.WriteAllBytes(cachePath, data);
-            return data;
+                    var data = await response.Content.ReadAsByteArrayAsync(token);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+
+                    lock (FileLocks[cachePath])
+                        File.WriteAllBytes(cachePath, data);
+
+                    success = true;
+
+                    return data;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to download: " + e.Message);
+                    continue;
+                }
+            }
+
+            if (!success)
+                throw new FileNotFoundException("Exhausted all CDNs trying to download " + hash);
+
+            return null;
         }
 
         private static async Task<byte[]> DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size, CancellationToken token = new())
@@ -96,29 +118,46 @@ namespace TACTSharp
                     File.Delete(cachePath);
             }
 
-            var url = $"http://{CDNServers[0]}/tpr/{tprDir}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
-
-            Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size);
-
-            var request = new HttpRequestMessage(HttpMethod.Get, url)
+            var success = false;
+            for (var i = 0; i < CDNServers.Count; i++)
             {
-                Headers =
+                try
                 {
-                    Range = new System.Net.Http.Headers.RangeHeaderValue(offset, offset + size - 1)
+                    var url = $"http://{CDNServers[i]}/tpr/{tprDir}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
+
+                    Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size);
+
+                    var request = new HttpRequestMessage(HttpMethod.Get, url)
+                    {
+                        Headers =
+                        {
+                            Range = new System.Net.Http.Headers.RangeHeaderValue(offset, offset + size - 1)
+                        }
+                    };
+
+                    var response = await Client.SendAsync(request, token);
+
+                    if (!response.IsSuccessStatusCode)
+                        throw new Exception("Encountered HTTP " + response.StatusCode + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
+
+                    var data = await response.Content.ReadAsByteArrayAsync(token);
+                    Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+
+                    lock (FileLocks[cachePath])
+                        File.WriteAllBytes(cachePath, data);
+                    return data;
                 }
-            };
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to download: " + e.Message);
+                    continue;
+                }
+            }
 
-            var response = await Client.SendAsync(request, token);
+            if (!success)
+                throw new FileNotFoundException("Exhausted all CDNs trying to download " + eKey + " (archive " + archive + ")");
 
-            if (!response.IsSuccessStatusCode)
-                throw new Exception("Failed to download " + url);
-
-            var data = await response.Content.ReadAsByteArrayAsync(token);
-            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-
-            lock (FileLocks[cachePath])
-                File.WriteAllBytes(cachePath, data);
-            return data;
+            return null;
         }
 
         public static async Task<byte[]> GetFile(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
@@ -137,6 +176,22 @@ namespace TACTSharp
                 return data;
             else
                 return BLTE.Decode(data, decompressedSize);
+        }
+
+        public static async Task<string> GetFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, CancellationToken token = new())
+        {
+            var cachePath = Path.Combine("cache", tprDir, type, hash);
+            if (File.Exists(cachePath))
+                return cachePath;
+
+            var data = await DownloadFile(tprDir, type, hash, compressedSize, token);
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+
+            FileLocks.TryAdd(cachePath, new Lock());
+            lock (FileLocks[cachePath])
+                File.WriteAllBytes(cachePath, data);
+
+            return cachePath;
         }
 
         public static async Task<string> GetDecodedFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
