@@ -207,53 +207,34 @@ namespace TACTTool
 
             Console.WriteLine("Extracting " + extractionTargets.Count + " file" + (extractionTargets.Count > 1 ? "s" : "") + "..");
 
-            Parallel.ForEach(extractionTargets, (target) =>
+            Parallel.ForEach(extractionTargets, target =>
             {
                 var (eKey, decodedSize, fileName) = target;
-                Console.WriteLine("Extracting " + Convert.ToHexStringLower(eKey) + " to " + fileName);
 
-                var (offset, size, archiveIndex) = build.GroupIndex.GetIndexInfo(eKey);
-                byte[] fileBytes;
+                Console.WriteLine("Extracting " + Convert.ToHexStringLower(eKey) + " to " + fileName);
 
                 try
                 {
-                    if (offset == -1)
+                    var fileBytes = build.OpenFileByEKey(eKey, decodedSize);
+
+                    if (Mode == InputMode.List)
                     {
-                        var fileIndexEntry = build.FileIndex.GetIndexInfo(eKey);
-                        if (fileIndexEntry.size == -1)
-                        {
-                            Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
-                            fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(eKey), 0, decodedSize, true).Result;
-                        }
-                        else
-                        {
-                            fileBytes = CDN.GetFile("wow", "data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true).Result;
-                        }
+                        Directory.CreateDirectory(Path.Combine(Output, Path.GetDirectoryName(fileName)!));
+                        File.WriteAllBytes(Path.Combine(Output, fileName), fileBytes);
                     }
                     else
                     {
-                        fileBytes = CDN.GetFileFromArchive(Convert.ToHexStringLower(eKey), "wow", build.CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true).Result;
+                        var dirName = Path.GetDirectoryName(fileName);
+                        if (!string.IsNullOrEmpty(dirName))
+                            Directory.CreateDirectory(dirName);
+
+                        File.WriteAllBytes(fileName, fileBytes);
                     }
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine("Failed to extract " + fileName + " (" + Convert.ToHexStringLower(eKey) + "): " + e.Message);
                     return;
-                }
-
-
-                if (Mode == InputMode.List)
-                {
-                    Directory.CreateDirectory(Path.Combine(Output, Path.GetDirectoryName(fileName)!));
-                    File.WriteAllBytes(Path.Combine(Output, fileName), fileBytes);
-                }
-                else
-                {
-                    var dirName = Path.GetDirectoryName(fileName);
-                    if (!string.IsNullOrEmpty(dirName))
-                        Directory.CreateDirectory(dirName);
-
-                    File.WriteAllBytes(fileName, fileBytes);
                 }
             });
 
