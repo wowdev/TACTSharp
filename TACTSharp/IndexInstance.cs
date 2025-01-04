@@ -9,6 +9,7 @@ namespace TACTSharp
         private readonly long indexSize;
         private IndexFooter footer;
         private readonly short archiveIndex = -1;
+        private readonly bool isFileIndex;
         private readonly bool isGroupArchive;
 
         private readonly MemoryMappedFile indexFile;
@@ -35,6 +36,7 @@ namespace TACTSharp
             using (var accessor = this.indexFile.CreateViewAccessor(this.indexSize - 20, 20, MemoryMappedFileAccess.Read))
                 accessor.Read(0, out footer);
 
+            isFileIndex = footer.offsetBytes == 0;
             isGroupArchive = footer.offsetBytes == 6;
 
             this.blockSizeBytes = footer.blockSizeKBytes << 10;
@@ -86,14 +88,14 @@ namespace TACTSharp
                 {
                     byte* startOfBlock = fileData + (i * this.blockSizeBytes);
                     var blockSpan = new ReadOnlySpan<byte>(startOfBlock, this.blockSizeBytes);
-                    for(var j = 0; j < this.entriesPerBlock; j++)
+                    for (var j = 0; j < this.entriesPerBlock; j++)
                     {
                         var entry = blockSpan.Slice(j * this.entrySize, this.entrySize);
                         var eKey = entry[..footer.keyBytes].ToArray();
                         var offset = entry.Slice(footer.keyBytes + footer.sizeBytes, footer.offsetBytes).ReadInt32BE();
                         var size = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
 
-                        if(size != 0)
+                        if (size != 0)
                             entries.Add((eKey, offset, size));
                     }
                 }
@@ -145,6 +147,11 @@ namespace TACTSharp
                     var fileArchiveIndex = entry.Slice(footer.keyBytes + footer.sizeBytes, 2).ReadInt16BE();
                     var offset = entry.Slice(footer.keyBytes + footer.sizeBytes + 2, 4).ReadInt32BE();
                     return (offset, encodedSize, fileArchiveIndex);
+                }
+                else if (isFileIndex)
+                {
+                    var encodedSize = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+                    return (-1, encodedSize, archiveIndex);
                 }
                 else
                 {
