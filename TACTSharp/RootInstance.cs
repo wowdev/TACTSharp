@@ -211,91 +211,70 @@ namespace TACTSharp
 
                 var skipChunk = localeSkip || contentSkip;
 
-                if (skipChunk)
-                {
-                     offset += (int)count * 4; // FileDataID map
+                bool separateLookup = newRoot;
+                bool doLookup = !newRoot || !contentFlags.HasFlag(ContentFlags.NoNames);
+                int sizeFdid = 4;
+                int sizeCHash = 16;
+                int sizeLookup = 8;
+                int strideFdid = sizeFdid;
+                int strideCHash = !separateLookup ? (sizeCHash + sizeLookup) : sizeCHash;
+                int strideLookup = !separateLookup ? (sizeCHash + sizeLookup) : sizeLookup;
+                int offsetFdid = offset;
+                int offsetCHash = offsetFdid + (int)count * sizeFdid;
+                int offsetLookup = offsetCHash + (!separateLookup ? sizeCHash : ((int)count * sizeCHash));
+                int blockSize = (int)count * (sizeFdid + sizeCHash + (doLookup ? sizeLookup : 0));
 
-                    if (!newRoot)
+                if (!skipChunk)
+                {
+                    uint fileDataIndex = 0;
+                    for (var i = 0; i < count; ++i)
                     {
-                        offset += (int)count * 24;
+                        RootEntry entry;
+                        entry.localeFlags = localeFlags;
+                        entry.contentFlags = contentFlags;
+
+                        uint fileDataIDOffset = (uint)BinaryPrimitives.ReadInt32LittleEndian(rootdata.Slice(offsetFdid, sizeFdid));
+                        offsetFdid += strideFdid;
+
+                        uint filedataIds_i = fileDataIndex + fileDataIDOffset;
+                        entry.fileDataID = filedataIds_i;
+                        fileDataIndex = filedataIds_i + 1;
+
+                        entry.md5 = rootdata.Slice(offsetCHash, sizeCHash).ToArray();
+                        offsetCHash += strideCHash;
+
+                        if (doLookup)
+                        {
+                            entry.lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offsetLookup, sizeLookup));
+                            offsetLookup += strideLookup;
+                            entriesLookup.TryAdd(entry.lookup, entry);
+                        }
+                        else
+                        {
+                            entry.lookup = 0;
+                        }
+
+                        if (!entriesFDID.TryAdd(entry.fileDataID, entry))
+                        {
+                            //if (!value.md5.SequenceEqual(entries[i].md5))
+                            //{
+                            //    Console.WriteLine("Attempted to add duplicate FDID " + entries[i].fileDataID);
+                            //    Console.WriteLine("\t Existing entry has localeFlags " + value.localeFlags + " and contentFlags " + value.contentFlags + " and ckey " + Convert.ToHexStringLower(value.md5));
+                            //    Console.WriteLine("\t New entry has localeFlags " + entries[i].localeFlags + " and contentFlags " + entries[i].contentFlags + " and ckey " + Convert.ToHexStringLower(entries[i].md5));
+                            //}
+                        }
                     }
-                    else
-                    {
-                        offset += (int)count * 16; // MD5s
-                        if(!contentFlags.HasFlag(ContentFlags.NoNames))
-                            offset += (int)count * 8; // Lookup
-                    }
+                }
+
+                offset += blockSize;
+                if (doLookup)
+                {
+                    namedCount += (int)count;
                 }
                 else
                 {
-                    var entries = new RootEntry[count];
-                    var filedataIds = new int[count];
-
-                    var fileDataIndex = 0;
-                    for (var i = 0; i < count; ++i)
-                    {
-                        entries[i].localeFlags = localeFlags;
-                        entries[i].contentFlags = contentFlags;
-
-                        var fileDataIDOffset = BinaryPrimitives.ReadInt32LittleEndian(rootdata.Slice(offset, 4));
-                        offset += 4;
-
-                        filedataIds[i] = fileDataIndex + fileDataIDOffset;
-                        entries[i].fileDataID = (uint)filedataIds[i];
-                        fileDataIndex = filedataIds[i] + 1;
-                    }
-
-                    if (!newRoot)
-                    {
-                        for (var i = 0; i < count; ++i)
-                        {
-                            entries[i].md5 = rootdata.Slice(offset, 16).ToArray();
-                            offset += 16;
-
-                            entries[i].lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offset, 8));
-                            offset += 8;
-
-                            entriesLookup.TryAdd(entries[i].lookup, entries[i]);
-                            entriesFDID.TryAdd(entries[i].fileDataID, entries[i]);
-                        }
-                    }
-                    else
-                    {
-                        for (var i = 0; i < count; ++i)
-                        {
-                            entries[i].md5 = rootdata.Slice(offset, 16).ToArray();
-                            offset += 16;
-                        }
-
-                        for (var i = 0; i < count; ++i)
-                        {
-                            if (contentFlags.HasFlag(ContentFlags.NoNames))
-                            {
-                                entries[i].lookup = 0;
-                                unnamedCount++;
-                            }
-                            else
-                            {
-                                entries[i].lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offset, 8));
-                                offset += 8;
-                                entriesLookup.TryAdd(entries[i].lookup, entries[i]);
-                                namedCount++;
-                            }
-
-                            if (!entriesFDID.TryAdd(entries[i].fileDataID, entries[i]))
-                            {
-                                //if (!value.md5.SequenceEqual(entries[i].md5))
-                                //{
-                                //    Console.WriteLine("Attempted to add duplicate FDID " + entries[i].fileDataID);
-                                //    Console.WriteLine("\t Existing entry has localeFlags " + value.localeFlags + " and contentFlags " + value.contentFlags + " and ckey " + Convert.ToHexStringLower(value.md5));
-                                //    Console.WriteLine("\t New entry has localeFlags " + entries[i].localeFlags + " and contentFlags " + entries[i].contentFlags + " and ckey " + Convert.ToHexStringLower(entries[i].md5));
-                                //}
-                            }
-                        }
-                    }
+                    unnamedCount += (int)count;
                 }
-
-
                 blockCount++;
             }
 
