@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.Diagnostics;
 using TACTSharp;
 
@@ -16,7 +17,7 @@ namespace TACTTool
             FileName
         };
 
-        private static InputMode Mode;
+        private static InputMode? Mode;
         private static string? Input;
         private static string? Output;
         private static readonly ConcurrentBag<(byte[] eKey, ulong decodedSize, string fileName)> extractionTargets = [];
@@ -42,6 +43,10 @@ namespace TACTTool
             regionOption.AddAlias("-r");
             rootCommand.AddOption(regionOption);
 
+            var localeOption = new Option<string?>(name: "--locale", () => "enUS", description: "Locale to use for file retrieval");
+            localeOption.AddAlias("-l");
+            rootCommand.AddOption(localeOption);
+
             var inputModeOption = new Option<string>("--mode", "Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)");
             inputModeOption.AddAlias("-m");
             rootCommand.AddOption(inputModeOption);
@@ -55,102 +60,10 @@ namespace TACTTool
             rootCommand.AddOption(outputDirOption);
 
             var baseDirOption = new Option<string?>(name: "--basedir", description: "WoW installation folder to use as source for build info and read-only file cache (if available)");
+            baseDirOption.AddAlias("-d");
             rootCommand.AddOption(baseDirOption);
 
-            rootCommand.SetHandler(async (product, buildConfig, cdnConfig, region, baseDir, inputMode, inputValue, output) =>
-            {
-                if (region != null)
-                    Settings.Region = region;
-
-                if (buildConfig != null)
-                    Settings.BuildConfig = buildConfig;
-
-                if (cdnConfig != null)
-                    Settings.CDNConfig = cdnConfig;
-
-                if (inputMode != null)
-                {
-                    Mode = inputMode.ToLower() switch
-                    {
-                        "list" => InputMode.List,
-                        "ehash" => InputMode.EKey,
-                        "ekey" => InputMode.EKey,
-                        "chash" => InputMode.CKey,
-                        "ckey" => InputMode.CKey,
-                        "id" => InputMode.FDID,
-                        "fdid" => InputMode.FDID,
-                        "install" => InputMode.FileName,
-                        "filename" => InputMode.FileName,
-                        "name" => InputMode.FileName,
-                        _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
-                    };
-                }
-                else
-                {
-                    Console.WriteLine("No input mode specified. Available modes: list, ekey, ckey, fdid, filename. Run with -h or --help for more information.");
-                }
-
-                if (inputValue != null)
-                    Input = inputValue;
-
-                if (Mode == InputMode.List)
-                {
-                    if (output != null)
-                        Output = output;
-                    else
-                        Output = "extract";
-                }
-                else
-                {
-                    if (output != null)
-                        Output = output;
-                }
-
-                if (product != null)
-                {
-                    Settings.Product = product;
-
-                    if (baseDir != null)
-                    {
-                        Settings.BaseDir = baseDir;
-
-                        // Load from build.info
-                        var buildInfoPath = Path.Combine(baseDir, ".build.info");
-                        if (!File.Exists(buildInfoPath))
-                            throw new Exception("No build.info found in base directory");
-
-                        var buildInfo = new BuildInfo(buildInfoPath);
-
-                        if (!buildInfo.Entries.Any(x => x.Product == product))
-                            throw new Exception("No build found for product " + product);
-
-                        var build = buildInfo.Entries.First(x => x.Product == product);
-
-                        if (buildConfig == null)
-                            Settings.BuildConfig = build.BuildConfig;
-
-                        if (cdnConfig == null)
-                            Settings.CDNConfig = build.CDNConfig;
-                    }
-                    else
-                    {
-                        var versions = await CDN.GetProductVersions(product);
-                        foreach (var line in versions.Split('\n'))
-                        {
-                            if (!line.StartsWith(Settings.Region + "|"))
-                                continue;
-
-                            var splitLine = line.Split('|');
-
-                            if (buildConfig == null)
-                                Settings.BuildConfig = splitLine[1];
-
-                            if (cdnConfig == null)
-                                Settings.CDNConfig = splitLine[2];
-                        }
-                    }
-                }
-            }, productOption, buildConfigOption, cdnConfigOption, regionOption, baseDirOption, inputModeOption, inputValueOption, outputDirOption);
+            rootCommand.SetHandler(CommandLineArgHandler);
 
             await rootCommand.InvokeAsync(args);
 
@@ -200,6 +113,12 @@ namespace TACTTool
                     break;
             }
 
+            if (extractionTargets.IsEmpty)
+            {
+                Console.WriteLine("No files to extract, exiting..");
+                return;
+            }
+
             Console.WriteLine("Extracting " + extractionTargets.Count + " file" + (extractionTargets.Count > 1 ? "s" : "") + "..");
 
             Parallel.ForEach(extractionTargets, target =>
@@ -235,6 +154,128 @@ namespace TACTTool
 
             totalTimer.Stop();
             Console.WriteLine("Total time: " + totalTimer.Elapsed.TotalMilliseconds + "ms");
+        }
+
+        private static async Task CommandLineArgHandler(InvocationContext context)
+        {
+            var command = context.ParseResult.CommandResult;
+            var modeOption = command.Command.Options.FirstOrDefault(option => option.Name == "mode");
+            foreach (var option in command.Command.Options)
+            {
+                var optionValue = command.GetValueForOption(option);
+                if (optionValue == null)
+                    continue;
+
+                switch (option.Name)
+                {
+                    case "buildconfig":
+                        Settings.BuildConfig = (string)optionValue;
+                        break;
+                    case "cdnconfig":
+                        Settings.CDNConfig = (string)optionValue;
+                        break;
+                    case "region":
+                        Settings.Region = (string)optionValue;
+                        break;
+                    case "product":
+                        Settings.Product = (string)optionValue;
+                        break;
+                    case "locale":
+                        Settings.Locale = ((string)optionValue).ToLower() switch
+                        {
+                            "dede" => RootInstance.LocaleFlags.deDE,
+                            "enus" => RootInstance.LocaleFlags.enUS,
+                            "engb" => RootInstance.LocaleFlags.enGB,
+                            "ruru" => RootInstance.LocaleFlags.ruRU,
+                            "zhcn" => RootInstance.LocaleFlags.zhCN,
+                            "zhtw" => RootInstance.LocaleFlags.zhTW,
+                            "entw" => RootInstance.LocaleFlags.enTW,
+                            "eses" => RootInstance.LocaleFlags.esES,
+                            "esmx" => RootInstance.LocaleFlags.esMX,
+                            "frfr" => RootInstance.LocaleFlags.frFR,
+                            "itit" => RootInstance.LocaleFlags.itIT,
+                            "kokr" => RootInstance.LocaleFlags.koKR,
+                            "ptbr" => RootInstance.LocaleFlags.ptBR,
+                            "ptpt" => RootInstance.LocaleFlags.ptPT,
+                            _ => throw new Exception("Invalid locale. Available locales: deDE, enUS, enGB, ruRU, zhCN, zhTW, enTW, esES, esMX, frFR, itIT, koKR, ptBR, ptPT"),
+                        };
+                        break;
+                    case "basedir":
+                        Settings.BaseDir = (string)optionValue;
+                        break;
+                    case "inputvalue":
+                        Input = (string)optionValue;
+                        break;
+                    case "output":
+                        Output = (string)optionValue;
+                        break;
+                    case "mode":
+                        Mode = ((string)optionValue).ToLower() switch
+                        {
+                            "list" => InputMode.List,
+                            "ehash" => InputMode.EKey,
+                            "ekey" => InputMode.EKey,
+                            "chash" => InputMode.CKey,
+                            "ckey" => InputMode.CKey,
+                            "id" => InputMode.FDID,
+                            "fdid" => InputMode.FDID,
+                            "install" => InputMode.FileName,
+                            "filename" => InputMode.FileName,
+                            "name" => InputMode.FileName,
+                            _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
+                        };
+                        break;
+
+                    case "version":
+                    case "help":
+                        break;
+                    default:
+                        Console.WriteLine("Unhandled command line option " + option.Name);
+                        break;
+                }
+            }
+
+            if (Mode == null)
+            {
+                Console.WriteLine("No input mode specified. Available modes: list, ekey, ckey, fdid, filename. Run with -h or --help for more information.");
+                return;
+            }
+
+            if (Mode == InputMode.List)
+                Output ??= "extract";
+
+            if (Settings.BaseDir != null)
+            {
+                // Load from build.info
+                var buildInfoPath = Path.Combine(Settings.BaseDir, ".build.info");
+                if (!File.Exists(buildInfoPath))
+                    throw new Exception("No build.info found in base directory");
+
+                var buildInfo = new BuildInfo(buildInfoPath);
+
+                if (!buildInfo.Entries.Any(x => x.Product == Settings.Product))
+                    throw new Exception("No build found for product " + Settings.Product);
+
+                var build = buildInfo.Entries.First(x => x.Product == Settings.Product);
+
+                Settings.BuildConfig ??= build.BuildConfig;
+                Settings.CDNConfig ??= build.CDNConfig;
+            }
+            else
+            {
+                // Load from patch service
+                var versions = await CDN.GetProductVersions(Settings.Product);
+                foreach (var line in versions.Split('\n'))
+                {
+                    if (!line.StartsWith(Settings.Region + "|"))
+                        continue;
+
+                    var splitLine = line.Split('|');
+
+                    Settings.BuildConfig ??= splitLine[1];
+                    Settings.CDNConfig ??= splitLine[2];
+                }
+            }
         }
 
         private static void HandleList(BuildInstance build, string path)
