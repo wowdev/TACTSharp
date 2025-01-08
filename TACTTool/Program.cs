@@ -249,12 +249,12 @@ namespace TACTTool
                 // Load from build.info
                 var buildInfoPath = Path.Combine(Settings.BaseDir, ".build.info");
                 if (!File.Exists(buildInfoPath))
-                    throw new Exception("No build.info found in base directory");
+                    throw new Exception("No build.info found in base directory, is this a valid WoW installation?");
 
                 var buildInfo = new BuildInfo(buildInfoPath);
 
                 if (!buildInfo.Entries.Any(x => x.Product == Settings.Product))
-                    throw new Exception("No build found for product " + Settings.Product);
+                    throw new Exception("No build found for product " + Settings.Product + " in .build.info, are you sure this product is installed?");
 
                 var build = buildInfo.Entries.First(x => x.Product == Settings.Product);
 
