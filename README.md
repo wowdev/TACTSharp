@@ -18,12 +18,12 @@ Options:
   -c, --cdnconfig <cdnconfig>      CDN config to load (hex or file on disk)
   -p, --product <product>          TACT product to load [default: wow]
   -r, --region <region>            Region to use for patch service/build selection/CDNs [default: us]
+  -l, --locale <locale>            Locale to use for file retrieval [default: enUS]
   -m, --mode <mode>                Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)
   -i, --inputvalue <inputvalue>    Input value for extraction
-  -o, --output <output>            Output path for extracted files, folder for list mode (defaults to 'extract'
-                                   folder), output filename for other input modes (defaults to input value as filename)
-  --basedir <basedir>              WoW installation folder to use as source for build info and read-only file cache (if
-                                   available)
+  -o, --output <output>            Output path for extracted files, folder for list mode (defaults to 'extract' folder), output filename for other input modes (defaults
+                                   to input value as filename)
+  -d, --basedir <basedir>          WoW installation folder to use as source for build info and read-only file cache (if available)
   --version                        Show version information
   -?, -h, --help                   Show help and usage information
 ```
@@ -62,9 +62,6 @@ ekey;00b797ea435427185f33466495855656;SomeFile.bytes
 801575;DBFilesClient/BattlePetAbilityEffect.db2
 801575;BattlePetAbilityEffect.db2
 ```
-
-
-
 
 # Support
 Only tested on WoW, other products not supported.
