@@ -9,6 +9,7 @@ namespace TACTSharp
         private static readonly HttpClient Client = new();
         private static readonly List<string> CDNServers = [];
         private static readonly ConcurrentDictionary<string, Lock> FileLocks = [];
+        private static readonly Lock cdnLock = new();
         private static bool HasLocal = false;
         private static readonly Dictionary<byte, CASCIndexInstance> CASCIndexInstances = [];
 
@@ -36,8 +37,15 @@ namespace TACTSharp
         public static void SetCDNs(string[] cdns)
         {
             foreach (var cdn in cdns)
-                if (!cdns.Contains(cdn))
-                    CDNServers.Add(cdn);
+            {
+                if (!CDNServers.Contains(cdn))
+                {
+                    lock (cdnLock)
+                    {
+                        CDNServers.Add(cdn);
+                    }
+                }
+            }
         }
 
         private static void LoadCDNs()
@@ -150,8 +158,13 @@ namespace TACTSharp
                         return File.ReadAllBytes(cachePath);
             }
 
-            if (CDNServers.Count == 0)
-                LoadCDNs();
+            lock (cdnLock)
+            {
+                if (CDNServers.Count == 0)
+                {
+                    LoadCDNs();
+                }
+            }
 
             var success = false;
             for (var i = 0; i < CDNServers.Count; i++)
@@ -213,7 +226,7 @@ namespace TACTSharp
                     {
                         mmapViewHandle.AcquirePointer(ref ptr);
 
-                        if(archiveOffset + archiveSize > archiveLength)
+                        if (archiveOffset + archiveSize > archiveLength)
                         {
                             Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
                             data = null;
@@ -266,8 +279,13 @@ namespace TACTSharp
                     File.Delete(cachePath);
             }
 
-            if (CDNServers.Count == 0)
-                LoadCDNs();
+            lock (cdnLock)
+            {
+                if (CDNServers.Count == 0)
+                {
+                    LoadCDNs();
+                }
+            }
 
             var success = false;
             for (var i = 0; i < CDNServers.Count; i++)
