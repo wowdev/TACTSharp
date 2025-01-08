@@ -206,7 +206,7 @@ namespace TACTSharp
                     offset += 4;
                 }
 
-                var localeSkip = !localeFlags.HasFlag(LocaleFlags.All_WoW) && !localeFlags.HasFlag(LocaleFlags.enUS);
+                var localeSkip = !localeFlags.HasFlag(LocaleFlags.All_WoW) && !localeFlags.HasFlag(Settings.Locale);
                 var contentSkip = (contentFlags & ContentFlags.LowViolence) != 0;
 
                 var skipChunk = localeSkip || contentSkip;
