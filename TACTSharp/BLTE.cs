@@ -17,10 +17,14 @@ namespace TACTSharp
 
             if (headerSize == 0)
             {
-                if ((char)data[fixedHeaderSize] != 'N')
-                    throw new NotImplementedException("Single-chunk BLTE, but data is not N!?");
+                if ((char)data[fixedHeaderSize] != 'N' && totalDecompSize == 0)
+                    throw new Exception("totalDecompSize must be set for single non-normal BLTE block");
+                else if((char)data[fixedHeaderSize] == 'N' && totalDecompSize == 0)
+                    totalDecompSize = (ulong)(data.Length - fixedHeaderSize - 1);
 
-                return data[(fixedHeaderSize + 1)..].ToArray();
+                var singleDecompData = new byte[totalDecompSize];
+                HandleDataBlock((char)data[fixedHeaderSize], data[(fixedHeaderSize + 1)..], 0, singleDecompData.AsSpan());
+                return singleDecompData;
             }
 
             //var flags = data[(fixedHeaderSize + 0)];
