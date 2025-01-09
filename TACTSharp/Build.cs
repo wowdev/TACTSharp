@@ -38,18 +38,25 @@
 
             timer.Start();
             if (!CDNConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
-                throw new Exception("No group archive index found in CDN config");
-
-            if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", groupArchiveIndex[0] + ".index")))
             {
-                GroupIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "Data", "indices", groupArchiveIndex[0] + ".index"));
+                Console.WriteLine("No group index found in CDN config, generating fresh group index...");
+                var groupIndexHash = TACTSharp.GroupIndex.Generate("", CDNConfig.Values["archives"]);
+                var groupIndexPath = Path.Combine("cache", "wow", "data", groupIndexHash + ".index");
+                GroupIndex = new IndexInstance(groupIndexPath);
             }
             else
             {
-                var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
-                if (!File.Exists(groupIndexPath))
-                    TACTSharp.GroupIndex.Generate(groupArchiveIndex[0], CDNConfig.Values["archives"]);
-                GroupIndex = new IndexInstance(groupIndexPath);
+                if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", groupArchiveIndex[0] + ".index")))
+                {
+                    GroupIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "Data", "indices", groupArchiveIndex[0] + ".index"));
+                }
+                else
+                {
+                    var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
+                    if (!File.Exists(groupIndexPath))
+                        TACTSharp.GroupIndex.Generate(groupArchiveIndex[0], CDNConfig.Values["archives"]);
+                    GroupIndex = new IndexInstance(groupIndexPath);
+                }
             }
             timer.Stop();
             Console.WriteLine("Group index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");

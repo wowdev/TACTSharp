@@ -17,15 +17,29 @@ namespace TACTSharp
         private static readonly List<IndexEntry> Entries = [];
         private static readonly Lock entryLock = new();
 
-        public static void Generate(string hash, string[] archives)
+        public static string Generate(string? hash, string[] archives)
         {
-            Console.WriteLine("Generating group index for " + hash);
+            if (string.IsNullOrEmpty(hash))
+                Console.WriteLine("Generating group index for unknown group-index");
+            else
+                Console.WriteLine("Generating group index for " + hash);
+
             Console.WriteLine("Loading " + archives.Length + " index files");
 
             Parallel.For(0, archives.Length, archiveIndex =>
             {
-                _ = CDN.GetFile("wow", "data", archives[archiveIndex] + ".index").Result;
-                var index = new IndexInstance(Path.Combine("cache", "wow", "data", archives[archiveIndex] + ".index"));
+                string indexPath = "";
+                if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", archives[archiveIndex] + ".index")))
+                {
+                    indexPath = Path.Combine(Settings.BaseDir, "Data", "indices", archives[archiveIndex] + ".index");
+                }
+                else
+                {
+                    _ = CDN.GetFile("wow", "data", archives[archiveIndex] + ".index").Result;
+                    indexPath = Path.Combine("cache", "wow", "data", archives[archiveIndex] + ".index");
+                }
+
+                var index = new IndexInstance(indexPath);
                 var allEntries = index.GetAllEntries();
                 foreach (var (eKey, offset, size) in allEntries)
                 {
@@ -137,11 +151,22 @@ namespace TACTSharp
                 // Generate full footer hash (filename)
                 bin.BaseStream.Position = totalSize - 28;
                 var fullFooterBytes = br.ReadBytes(28);
-                var fullFooterMD5Hash = MD5.HashData(fullFooterBytes);
-                if (Convert.ToHexStringLower(fullFooterMD5Hash) != hash)
-                    throw new Exception("Footer MD5 of group index does not match group index filename");
+                var fullFooterMD5Hash = Convert.ToHexStringLower(MD5.HashData(fullFooterBytes));
 
-                File.WriteAllBytes(Path.Combine("cache", "wow", "data", hash + ".index"), ms.ToArray());
+                if (!string.IsNullOrEmpty(hash))
+                {
+                    if (fullFooterMD5Hash != hash)
+                        throw new Exception("Footer MD5 of group index does not match group index filename");
+
+                    File.WriteAllBytes(Path.Combine("cache", "wow", "data", hash + ".index"), ms.ToArray());
+                }
+                else
+                {
+                    hash = fullFooterMD5Hash;
+                    File.WriteAllBytes(Path.Combine("cache", "wow", "data", fullFooterMD5Hash + ".index"), ms.ToArray());
+                }
+
+                return hash;
             }
         }
 
