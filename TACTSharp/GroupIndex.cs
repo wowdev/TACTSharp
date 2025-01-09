@@ -153,6 +153,8 @@ namespace TACTSharp
                 var fullFooterBytes = br.ReadBytes(28);
                 var fullFooterMD5Hash = Convert.ToHexStringLower(MD5.HashData(fullFooterBytes));
 
+                Directory.CreateDirectory(Path.Combine("cache", "wow", "data"));
+
                 if (!string.IsNullOrEmpty(hash))
                 {
                     if (fullFooterMD5Hash != hash)
