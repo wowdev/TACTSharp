@@ -2,8 +2,26 @@
 Library utilizing memory-mapped file access to speed up initial loading and have lower RAM usage compared to other libraries. Made so I can extract things on my NAS without it getting resource starved.  
 Largely based on @bloerwald's memory-mapped file reading implementations.
 
+## Current features
+- Faster build loading time and lower memory footprint compared to other solutions.
+- Loads both online and local World of Warcraft installations.
+- Loading of game files by ekey, ckey, ID or by name in install manifest.
+
+## TODO for 1.0
+- Stabilize and lock-in API usage.
+- Support for encrypted products.
+- Support for specifying install tag priority (so e.g. the exe for WoW China can be extracted).
+- Listfile support (optionally loaded the first time a filename isn't found?).
+- Ability to use a folder with CDN-structured files as a data source (similar to local WoW installs).
+- Test run on all available WoW CDN data to data starting at 6.0.
+
+## Not planned
+This may change in the future, but this is currently **NOT** planned to be part of 1.0.
+- Support for other games than WoW.
+- GUI tool.
+
 # TACTTool
-Tool using the library for simple file extraction. 
+CLI tool using the library for simple file extraction. 
 
 ## Usage
 ```
