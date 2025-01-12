@@ -118,7 +118,7 @@
 
         public byte[] OpenFileByCKey(string cKey) => OpenFileByCKey(Convert.FromHexString(cKey));
 
-        public byte[] OpenFileByCKey(byte[] cKey)
+        public byte[] OpenFileByCKey(Span<byte> cKey)
         {
             if (Encoding == null)
                 throw new Exception("Encoding not loaded");

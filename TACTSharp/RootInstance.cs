@@ -1,6 +1,8 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System.Buffers.Binary;
 using System.IO.MemoryMappedFiles;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace TACTSharp
 {
@@ -83,7 +85,20 @@ namespace TACTSharp
             public LocaleFlags localeFlags;
             public ulong lookup;
             public uint fileDataID;
-            public byte[] md5;
+            public MD5 md5;
+        }
+
+        [InlineArray(16)]
+        public struct MD5
+        {
+            public const int Length = 16;
+
+            private byte _element;
+
+            public MD5(ReadOnlySpan<byte> sourceData) => sourceData.CopyTo(MemoryMarshal.CreateSpan(ref _element, Length));
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Span<byte> AsSpan() => MemoryMarshal.CreateSpan(ref _element, Length);
         }
 
         public RootEntry? GetEntryByFDID(uint fileDataID)
@@ -229,7 +244,7 @@ namespace TACTSharp
                     uint fileDataIndex = 0;
                     for (var i = 0; i < count; ++i)
                     {
-                        RootEntry entry;
+                        RootEntry entry = default;
                         entry.localeFlags = localeFlags;
                         entry.contentFlags = contentFlags;
 
@@ -240,7 +255,8 @@ namespace TACTSharp
                         entry.fileDataID = filedataIds_i;
                         fileDataIndex = filedataIds_i + 1;
 
-                        entry.md5 = rootdata.Slice(offsetCHash, sizeCHash).ToArray();
+                        entry.md5 = new(rootdata.Slice(offsetCHash, sizeCHash));
+
                         offsetCHash += strideCHash;
 
                         if (doLookup)

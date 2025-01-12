@@ -2,7 +2,10 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using TACTSharp;
+using static TACTSharp.RootInstance;
 
 namespace TACTTool
 {
@@ -357,7 +360,7 @@ namespace TACTTool
                 return;
             }
 
-            if (!build.Encoding.TryGetEKeys(fileEntry.Value.md5, out var fileEKeys) || fileEKeys == null)
+            if (!build.Encoding.TryGetEKeys(fileEntry.Value.md5.AsSpan(), out var fileEKeys) || fileEKeys == null)
             {
                 Console.WriteLine("Skipping FDID " + fdid + ", CKey not found in encoding.");
                 return;
