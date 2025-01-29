@@ -7,9 +7,36 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>true</Optimize>
+  </PropertyGroup>
 
   <ItemGroup>
     <Folder Include="Utils\" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <Authors>WoWDev</Authors>
+    <Description>Library for reading World of Warcraft's TACT/CASC storage</Description>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/wowdev/TACTSharp.git</RepositoryUrl>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>library,CASC,TACT,World of Warcraft</PackageTags>
+    <PackageProjectUrl>https://github.com/wowdev/TACTSharp</PackageProjectUrl>
+    <PackageIcon>nuget-icon.png</PackageIcon>
+    <IncludeSymbols>true</IncludeSymbols>
+    <IncludeSource>true</IncludeSource>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../nuget-icon.png" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 </Project>
