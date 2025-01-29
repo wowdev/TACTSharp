@@ -1,5 +1,5 @@
 # TACTSharp
-Library utilizing memory-mapped file access to speed up initial loading and have lower RAM usage compared to other libraries. Made so I can extract things on my NAS without it getting resource starved.  
+Library utilizing memory-mapped file access to speed up initial loading and have lower RAM usage compared to other libraries that load WoW's CASC storage. Made so Marlamin can extract things on their NAS without it getting resource starved.  
 Largely based on @bloerwald's memory-mapped file reading implementations.
 
 ## Current features
