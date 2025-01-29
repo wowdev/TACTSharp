@@ -19,7 +19,7 @@
 
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
-    <Version>0.0.8</Version>
+    <Version>0.0.8-alpha</Version>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
@@ -37,6 +37,8 @@
     <PackageProjectUrl>https://github.com/wowdev/TACTSharp</PackageProjectUrl>
     <PackageIcon>nuget-icon.png</PackageIcon>
     <IncludeSource>true</IncludeSource>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
 
