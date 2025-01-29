@@ -1,4 +1,6 @@
-﻿namespace TACTSharp
+﻿using System.Runtime.CompilerServices;
+
+namespace TACTSharp
 {
     public class BuildInstance
     {
@@ -80,7 +82,7 @@
 
             var encodingSize = ulong.Parse(BuildConfig.Values["encoding-size"][0]);
             timer.Restart();
-            Encoding = new EncodingInstance(await CDN.GetDecodedFilePath("wow", "data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), encodingSize), encodingSize);
+            Encoding = new EncodingInstance(await CDN.GetDecodedFilePath("wow", "data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), encodingSize), (int) encodingSize);
             timer.Stop();
             Console.WriteLine("Encoding loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
@@ -112,14 +114,16 @@
             if (Root == null)
                 throw new Exception("Root not loaded");
 
-            var fileData = Root.GetEntryByFDID(fileDataID) ?? throw new Exception("File not found in root");
+            ref var fileData = ref Root.FindFileDataID(fileDataID);
+            if (Unsafe.IsNullRef(in fileData))
+                throw new Exception("File not found in root");
 
-            return OpenFileByCKey(fileData.md5);
+            return OpenFileByCKey(fileData.ContentKey);
         }
 
         public byte[] OpenFileByCKey(string cKey) => OpenFileByCKey(Convert.FromHexString(cKey));
 
-        public byte[] OpenFileByCKey(Span<byte> cKey)
+        public byte[] OpenFileByCKey(ReadOnlySpan<byte> cKey)
         {
             if (Encoding == null)
                 throw new Exception("Encoding not loaded");

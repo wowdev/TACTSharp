@@ -353,14 +353,14 @@ namespace TACTTool
                 return;
             }
 
-            var fileEntry = build.Root.GetEntryByFDID(fileDataID);
-            if (fileEntry == null)
+            ref var fileEntry = ref build.Root.FindFileDataID(fileDataID);
+            if (Unsafe.IsNullRef(in fileEntry))
             {
                 Console.WriteLine("Skipping FDID " + fdid + ", not found in root.");
                 return;
             }
 
-            if (!build.Encoding.TryGetEKeys(fileEntry.Value.md5.AsSpan(), out var fileEKeys) || fileEKeys == null)
+            if (!build.Encoding.TryGetEKeys(fileEntry.ContentKey.AsSpan(), out var fileEKeys) || fileEKeys == null)
             {
                 Console.WriteLine("Skipping FDID " + fdid + ", CKey not found in encoding.");
                 return;

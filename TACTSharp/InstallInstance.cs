@@ -2,6 +2,8 @@
 using System.Collections;
 using System.IO.MemoryMappedFiles;
 
+using TACTSharp.Extensions;
+
 namespace TACTSharp
 {
     public class InstallInstance

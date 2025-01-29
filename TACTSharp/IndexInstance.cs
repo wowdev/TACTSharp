@@ -1,6 +1,8 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System.IO.MemoryMappedFiles;
 
+using TACTSharp.Extensions;
+
 namespace TACTSharp
 {
     // mostly based on schlumpf's implementation, but with some changes because i dont know how to port some c++ things to c# properly

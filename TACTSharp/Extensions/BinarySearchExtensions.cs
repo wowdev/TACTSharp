@@ -21,10 +21,10 @@ namespace TACTSharp.Extensions
                 0 => Ordering.Equal,
             };
 
-        public delegate Ordering BinarySearchComparer<T>(scoped ref T left, scoped ref T right) where T : allows ref struct;
+        public delegate Ordering BinarySearchComparer<T, U>(scoped ref T left, U right) where U : allows ref struct;
         public delegate Ordering BinarySearchSpanComparer<T>(ReadOnlySpan<T> left, ReadOnlySpan<T> right);
 
-        /// <inheritdoc cref="BinarySearch{T}(ReadOnlySpan{T}, BinarySearchComparer{T}, ref T)" />
+        /// <inheritdoc cref="BinarySearch{T, U}(ReadOnlySpan{T}, BinarySearchComparer{T, U}, U)" />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T>(this StridedReadOnlySpan<T> haystack, BinarySearchSpanComparer<T> cmp, ReadOnlySpan<T> needle)
         {
@@ -61,12 +61,13 @@ namespace TACTSharp.Extensions
         /// Performs a binary search on a <paramref name="haystack"/>, returning the index of the <paramref name="needle"/> if possible.
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        /// <typeparam name="U"></typeparam>
         /// <param name="haystack">A buffer of sorted data to sift through.</param>
         /// <param name="cmp">A predicate of the form <c>cmp(<paramref name="haystack"/>[i], <paramref name="needle"/>)</c>.</param>
         /// <param name="needle">The <c>needle</c> to search for.</param>
         /// <returns>The index of the item that was found, or the insertion point that maintains ordering negated.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T> cmp, scoped ref T needle)
+        public static int BinarySearch<T, U>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T, U> cmp, U needle)
         {
             var size = haystack.Length;
             var left = 0;
@@ -76,7 +77,7 @@ namespace TACTSharp.Extensions
             {
                 var mid = left + size / 2;
                 // If you need to ask, ReadOnlySpan.Item(int) doesn't allow the return value to be taken by ref.
-                var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), ref needle);
+                var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), needle);
 
                 switch (ordering)
                 {
@@ -134,12 +135,13 @@ namespace TACTSharp.Extensions
         /// Searches for the first element in <paramref name="haystack"/> that is <b>not</b> ordered before <paramref name="needle"/>.
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        /// <typeparam name="U"></typeparam>
         /// <param name="haystack">A range of elements to examine.</param>
         /// <param name="cmp">A binary predicate that returns true if the first argument is ordered before the second.</param>
         /// <param name="needle">The value to compare the elements to.</param>
         /// <returns>The index of the first element in range that is not ordered before the needle, or an index past the end.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int LowerBound<T>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T> cmp, ref T needle)
+        public static int LowerBound<T, U>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T, U> cmp, U needle)
         {
             var size = haystack.Length;
             var left = 0;
@@ -148,7 +150,7 @@ namespace TACTSharp.Extensions
             while (left < right)
             {
                 var mid = left + size / 2;
-                var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), ref needle);
+                var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), needle);
 
                 switch (ordering)
                 {
@@ -203,12 +205,13 @@ namespace TACTSharp.Extensions
         /// Searches for the first element in <paramref name="haystack"/> that is ordered after <paramref name="needle"/>.
         /// </summary>
         /// <typeparam name="T"></typeparam>
+        /// <typeparam name="U"></typeparam>
         /// <param name="haystack">A range of elements to examine.</param>
         /// <param name="cmp">A binary predicate that returns if the first argument is ordered before the second.</param>
         /// <param name="needle">The value to compare the elements to.</param>
         /// <returns>The index of the first element in range that is not ordered before the needle, or an index past the end.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int UpperBound<T>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T> cmp, ref T needle)
+        public static int UpperBound<T, U>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T, U> cmp, U needle)
         {
             var size = haystack.Length;
             var left = 0;
@@ -217,7 +220,7 @@ namespace TACTSharp.Extensions
             while (left < right)
             {
                 var mid = left + size / 2;
-                var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), ref needle);
+                var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), needle);
 
                 switch (ordering)
                 {
@@ -239,15 +242,15 @@ namespace TACTSharp.Extensions
         // ^^^ Upper bound / Array shorthands vvv
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int UpperBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
-            => UpperBound(haystack.AsSpan(), cmp, ref needle);
+        public static int UpperBound<T, U>(this T[] haystack, BinarySearchComparer<T, U> cmp, U needle)
+            => UpperBound(haystack.AsSpan(), cmp, needle);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int LowerBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
-            => LowerBound(haystack.AsSpan(), cmp, ref needle);
+        public static int LowerBound<T, U>(this T[] haystack, BinarySearchComparer<T, U> cmp, U needle)
+            => LowerBound(haystack.AsSpan(), cmp, needle);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
-            => BinarySearch(haystack.AsSpan(), cmp, ref needle);
+        public static int BinarySearch<T, U>(this T[] haystack, BinarySearchComparer<T, U> cmp, U needle)
+            => BinarySearch(haystack.AsSpan(), cmp, needle);
     }
 }

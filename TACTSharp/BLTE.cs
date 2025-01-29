@@ -1,6 +1,8 @@
 ﻿using System.Buffers.Binary;
 using System.IO.Compression;
 
+using TACTSharp.Extensions;
+
 namespace TACTSharp
 {
     public static class BLTE

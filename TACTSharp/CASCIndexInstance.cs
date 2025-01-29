@@ -1,6 +1,8 @@
 ﻿using Microsoft.Win32.SafeHandles;
 using System.IO.MemoryMappedFiles;
 
+using TACTSharp.Extensions;
+
 namespace TACTSharp
 {
     public sealed class CASCIndexInstance
@@ -90,7 +92,7 @@ namespace TACTSharp
 
                 var indexHigh = entrySpan[header.entryKeyBytes];
                 var indexLow = entrySpan.Slice(header.entryKeyBytes + 1, 4).ReadInt32BE();
-                var indexSize = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(entrySpan.Slice(header.entryKeyBytes + 5, header.entrySizeBytes)) - 30;
+                var indexSize = entrySpan.Slice(header.entryKeyBytes + 5, header.entrySizeBytes).ReadInt32LE() - 30;
 
                 var archiveIndex = (indexHigh << 2 | (byte)((indexLow & 0xC0000000) >> 30));
                 var archiveOffset = (indexLow & 0x3FFFFFFF) + 30;
