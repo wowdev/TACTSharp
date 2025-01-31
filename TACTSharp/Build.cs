@@ -90,7 +90,7 @@
             if (!Encoding.TryGetEKeys(Convert.FromHexString(rootKey[0]), out var rootEKeys) || rootEKeys == null)
                 throw new Exception("Root key not found in encoding");
 
-            Root = new RootInstance(await CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(rootEKeys.Value.eKeys[0]), 0, rootEKeys.Value.decodedFileSize));
+            Root = new RootInstance(await CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(rootEKeys.Value[0]), 0, rootEKeys.Value.DecodedFileSize));
             timer.Stop();
             Console.WriteLine("Root loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
@@ -101,7 +101,7 @@
             if (!Encoding.TryGetEKeys(Convert.FromHexString(installKey[0]), out var installEKeys) || installEKeys == null)
                 throw new Exception("Install key not found in encoding");
 
-            Install = new InstallInstance(await CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(installEKeys.Value.eKeys[0]), 0, installEKeys.Value.decodedFileSize));
+            Install = new InstallInstance(await CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(installEKeys.Value[0]), 0, installEKeys.Value.DecodedFileSize));
             timer.Stop();
             Console.WriteLine("Install loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
         }
@@ -123,14 +123,16 @@
             if (Encoding == null)
                 throw new Exception("Encoding not loaded");
 
-            var encodingResult = Encoding.GetEKeys(cKey) ?? throw new Exception("File not found in encoding");
+            var encodingResult = Encoding.GetEKeys(cKey);
+            if (encodingResult.Length == 0)
+                throw new Exception("File not found in encoding");
 
-            return OpenFileByEKey(encodingResult.eKeys[0], encodingResult.decodedFileSize);
+            return OpenFileByEKey(encodingResult[0], encodingResult.DecodedFileSize);
         }
 
         public byte[] OpenFileByEKey(string eKey, ulong decodedSize = 0) => OpenFileByEKey(Convert.FromHexString(eKey), decodedSize);
 
-        public byte[] OpenFileByEKey(byte[] eKey, ulong decodedSize = 0)
+        public byte[] OpenFileByEKey(ReadOnlySpan<byte> eKey, ulong decodedSize = 0)
         {
             if (GroupIndex == null || FileIndex == null)
                 throw new Exception("Indexes not loaded");
