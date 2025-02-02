@@ -78,8 +78,9 @@
             timer.Stop();
             Console.WriteLine("File index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
+            var encodingSize = ulong.Parse(BuildConfig.Values["encoding-size"][0]);
             timer.Restart();
-            Encoding = new EncodingInstance(await CDN.GetDecodedFilePath("wow", "data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), ulong.Parse(BuildConfig.Values["encoding-size"][0])));
+            Encoding = new EncodingInstance(await CDN.GetDecodedFilePath("wow", "data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), encodingSize), encodingSize);
             timer.Stop();
             Console.WriteLine("Encoding loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 

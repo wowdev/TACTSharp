@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32.SafeHandles;
 
 using System.Diagnostics;
+using System.IO;
 using System.IO.MemoryMappedFiles;
 
 using TACTSharp.Extensions;
@@ -12,6 +13,7 @@ namespace TACTSharp
     public class EncodingInstance
     {
         private readonly string _filePath;
+        private readonly int _fileSize;
         private readonly MemoryMappedFile encodingFile;
         private readonly MemoryMappedViewAccessor accessor;
         private readonly SafeMemoryMappedViewHandle mmapViewHandle;
@@ -21,19 +23,21 @@ namespace TACTSharp
 
         public static readonly EncodingResult Zero = new(0, [], 0);
 
-        public EncodingInstance(string path)
+        public EncodingInstance(string filePath, int fileSize)
         {
-            _filePath = path;
+            _filePath = filePath;
+            _fileSize = fileSize;
 
-            this.encodingFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+            this.encodingFile = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             this.accessor = encodingFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
             this.mmapViewHandle = accessor.SafeMemoryMappedViewHandle;
 
             (var version, _header) = ReadHeader();
-
             if (version != 1)
                 throw new Exception("Unsupported encoding version");
         }
+
+        public EncodingInstance(string path) : this(path, (int)new FileInfo(path).Length) { }
 
         unsafe private (byte Version, EncodingSchema Schema) ReadHeader()
         {
@@ -88,7 +92,7 @@ namespace TACTSharp
             byte* pageData = null;
             mmapViewHandle.AcquirePointer(ref pageData);
 
-            ReadOnlySpan<byte> fileData = new(pageData, (int) new FileInfo(_filePath).Length);
+            ReadOnlySpan<byte> fileData = new(pageData, _fileSize);
             var targetPage = _header.CEKey.ResolvePage(fileData, cKeyTarget);
             while (targetPage.Length != 0)
             {
@@ -119,7 +123,7 @@ namespace TACTSharp
             byte* pageData = null;
             mmapViewHandle.AcquirePointer(ref pageData);
 
-            ReadOnlySpan<byte> fileData = new(pageData, (int) new FileInfo(_filePath).Length);
+            ReadOnlySpan<byte> fileData = new(pageData, _fileSize);
 
             lock (_encodingSpecsLock)
             {

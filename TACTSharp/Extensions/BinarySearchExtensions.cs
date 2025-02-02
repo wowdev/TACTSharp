@@ -240,8 +240,7 @@ namespace TACTSharp.Extensions
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int UpperBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
-            => LowerBound(haystack.AsSpan(), cmp, ref needle);
-
+            => UpperBound(haystack.AsSpan(), cmp, ref needle);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LowerBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
