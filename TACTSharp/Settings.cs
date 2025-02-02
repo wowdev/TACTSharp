@@ -8,5 +8,6 @@
         public static string? BaseDir;
         public static string? BuildConfig;
         public static string? CDNConfig;
+        public static string CacheDir = "~/cache";
     }
 }

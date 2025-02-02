@@ -146,7 +146,7 @@ namespace TACTSharp
                 }
             }
 
-            var cachePath = Path.Combine("cache", tprDir, type, hash);
+            var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash);
             FileLocks.TryAdd(cachePath, new Lock());
 
             if (File.Exists(cachePath))
@@ -173,7 +173,7 @@ namespace TACTSharp
                 {
                     var url = $"http://{CDNServers[i]}/tpr/{tprDir}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
-                    Console.WriteLine("Downloading " + url);
+                    Console.WriteLine("Downloading " + url + " to " + Path.GetFullPath(cachePath));
 
                     var response = await Client.GetAsync(url, token);
                     if (!response.IsSuccessStatusCode)
@@ -267,7 +267,7 @@ namespace TACTSharp
                 }
             }
 
-            var cachePath = Path.Combine("cache", tprDir, "data", eKey);
+            var cachePath = Path.Combine(Settings.CacheDir, tprDir, "data", eKey);
             FileLocks.TryAdd(cachePath, new Lock());
 
             if (File.Exists(cachePath))
@@ -349,7 +349,7 @@ namespace TACTSharp
 
         public static async Task<string> GetFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, CancellationToken token = new())
         {
-            var cachePath = Path.Combine("cache", tprDir, type, hash);
+            var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash);
             if (File.Exists(cachePath))
                 return cachePath;
 
@@ -365,7 +365,7 @@ namespace TACTSharp
 
         public static async Task<string> GetDecodedFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
         {
-            var cachePath = Path.Combine("cache", tprDir, type, hash + ".decoded");
+            var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash + ".decoded");
             if (File.Exists(cachePath))
                 return cachePath;
 

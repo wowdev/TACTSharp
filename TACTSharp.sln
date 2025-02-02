@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTSharp", "TACTSharp\TACT
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTTool", "TACTTool\TACTTool.csproj", "{42BA4C53-C942-4E39-9E25-1134BEE0C4FE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTBench", "TACTBench\TACTBench.csproj", "{525CDCD3-3F3F-4E4D-8BD7-5A4BA42400DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{42BA4C53-C942-4E39-9E25-1134BEE0C4FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{42BA4C53-C942-4E39-9E25-1134BEE0C4FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{42BA4C53-C942-4E39-9E25-1134BEE0C4FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{525CDCD3-3F3F-4E4D-8BD7-5A4BA42400DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{525CDCD3-3F3F-4E4D-8BD7-5A4BA42400DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{525CDCD3-3F3F-4E4D-8BD7-5A4BA42400DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{525CDCD3-3F3F-4E4D-8BD7-5A4BA42400DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
