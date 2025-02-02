@@ -342,7 +342,7 @@ namespace TACTTool
                 return;
             }
 
-            extractionTargets.Add((fileEKeys.Value.eKeys[0], fileEKeys.Value.decodedFileSize, !string.IsNullOrEmpty(filename) ? filename : cKey));
+            extractionTargets.Add((fileEKeys.Value[0].ToArray(), fileEKeys.Value.DecodedFileSize, !string.IsNullOrEmpty(filename) ? filename : cKey));
         }
 
         private static void HandleFDID(BuildInstance build, string fdid, string? filename)
@@ -366,7 +366,7 @@ namespace TACTTool
                 return;
             }
 
-            extractionTargets.Add((fileEKeys.Value.eKeys[0], fileEKeys.Value.decodedFileSize, !string.IsNullOrEmpty(filename) ? filename : fdid));
+            extractionTargets.Add((fileEKeys.Value[0].ToArray(), fileEKeys.Value.DecodedFileSize, !string.IsNullOrEmpty(filename) ? filename : fdid));
         }
 
         private static void HandleFileName(BuildInstance build, string filename, string? outputFilename)
@@ -403,7 +403,7 @@ namespace TACTTool
             if (!build.Encoding.TryGetEKeys(targetCKey, out var fileEKeys) || fileEKeys == null)
                 throw new Exception("EKey not found in encoding");
 
-            extractionTargets.Add((fileEKeys.Value.eKeys[0], fileEKeys.Value.decodedFileSize, !string.IsNullOrEmpty(outputFilename) ? outputFilename : filename));
+            extractionTargets.Add((fileEKeys.Value[0].ToArray(), fileEKeys.Value.DecodedFileSize, !string.IsNullOrEmpty(outputFilename) ? outputFilename : filename));
         }
     }
 }
