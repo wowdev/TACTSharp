@@ -371,13 +371,30 @@ namespace TACTTool
 
         private static void HandleFileName(BuildInstance build, string filename, string? outputFilename)
         {
-            // TODO: Add listfile support?
-
             var fileEntries = build.Install.Entries.Where(x => x.name.Equals(filename, StringComparison.InvariantCultureIgnoreCase)).ToList();
             if (fileEntries.Count == 0)
             {
-                Console.WriteLine("Skipping " + filename + ", no file by that name found in install.");
-                return;
+                if (Settings.ListfileFallback)
+                {
+                    Console.WriteLine("No file by name \"" + filename + "\" found in install. Checking listfile.");
+                    if(!Listfile.Initialized)
+                        Listfile.Initialize();
+
+                    var listfileID = Listfile.GetFDID(filename);
+                    if (listfileID == 0)
+                    {
+                        Console.WriteLine("No file by name \"" + filename + "\" found in listfile. Skipping..");
+                        return;
+                    }
+
+                    HandleFDID(build, listfileID.ToString(), filename);
+                    return;
+                }
+                else
+                {
+                    Console.WriteLine("No file by name \"" + filename + "\" found in install and listfile fallback is disabled. Skipping..");
+                    return;
+                }
             }
 
             byte[] targetCKey;

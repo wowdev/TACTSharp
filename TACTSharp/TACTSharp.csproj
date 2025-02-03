@@ -13,10 +13,6 @@
     <IsAotCompatible>True</IsAotCompatible>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Utils\" />
-  </ItemGroup>
-
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Version>0.0.9-alpha</Version>
