@@ -87,7 +87,7 @@ namespace TACTSharp
             return result.HasValue;
         }
 
-        public unsafe EncodingResult GetEKeys(Span<byte> cKeyTarget)
+        public unsafe EncodingResult GetEKeys(ReadOnlySpan<byte> cKeyTarget)
         {
             byte* pageData = null;
             mmapViewHandle.AcquirePointer(ref pageData);
