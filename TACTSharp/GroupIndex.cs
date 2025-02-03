@@ -35,7 +35,7 @@ namespace TACTSharp
                 }
                 else
                 {
-                    _ = CDN.GetFile("wow", "data", archives[archiveIndex] + ".index").Result;
+                    _ = CDN.GetFile("wow", "data", archives[archiveIndex] + ".index");
                     indexPath = Path.Combine(Settings.CacheDir, "wow", "data", archives[archiveIndex] + ".index");
                 }
 
