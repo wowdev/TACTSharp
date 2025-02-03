@@ -41,7 +41,7 @@
             {
                 Console.WriteLine("No group index found in CDN config, generating fresh group index...");
                 var groupIndexHash = TACTSharp.GroupIndex.Generate("", CDNConfig.Values["archives"]);
-                var groupIndexPath = Path.Combine("cache", "wow", "data", groupIndexHash + ".index");
+                var groupIndexPath = Path.Combine(Settings.CacheDir, "wow", "data", groupIndexHash + ".index");
                 GroupIndex = new IndexInstance(groupIndexPath);
             }
             else
@@ -52,7 +52,7 @@
                 }
                 else
                 {
-                    var groupIndexPath = Path.Combine("cache", "wow", "data", groupArchiveIndex[0] + ".index");
+                    var groupIndexPath = Path.Combine(Settings.CacheDir, "wow", "data", groupArchiveIndex[0] + ".index");
                     if (!File.Exists(groupIndexPath))
                         TACTSharp.GroupIndex.Generate(groupArchiveIndex[0], CDNConfig.Values["archives"]);
                     GroupIndex = new IndexInstance(groupIndexPath);
