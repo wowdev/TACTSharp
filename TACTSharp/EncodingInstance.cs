@@ -159,7 +159,7 @@ namespace TACTSharp
                 }
                 else
                 {
-                    targetPage = targetPage[..(_header.EKeySize + 4 + 5)];
+                    targetPage = targetPage[(_header.EKeySize + 4 + 5)..];
                 }
             }
 
