@@ -1,7 +1,6 @@
 ﻿using Microsoft.Win32.SafeHandles;
 
 using System.Diagnostics;
-using System.IO;
 using System.IO.MemoryMappedFiles;
 
 using TACTSharp.Extensions;
@@ -100,7 +99,7 @@ namespace TACTSharp
                 var recordData = targetPage.Slice(1, 5 + _header.CKeySize + _header.EKeySize * keyCount);
 
                 // Advance iteration
-                targetPage = targetPage[(recordData.Length + 1) ..];
+                targetPage = targetPage[(recordData.Length + 1)..];
 
                 if (keyCount == 0)
                     continue;
@@ -154,13 +153,13 @@ namespace TACTSharp
                 if (targetPage[.._header.EKeySize].SequenceEqual(eKeyTarget))
                 {
                     var specIndex = targetPage.Slice(_header.EKeySize).ReadInt32BE();
-                    var encodedFileSize = (ulong) targetPage.Slice(_header.EKeySize + 4).ReadInt40BE();
+                    var encodedFileSize = (ulong)targetPage.Slice(_header.EKeySize + 4).ReadInt40BE();
 
                     return (_encodingSpecs[specIndex], encodedFileSize);
                 }
                 else
                 {
-                    targetPage = targetPage[.. (_header.EKeySize + 4 + 5)];
+                    targetPage = targetPage[..(_header.EKeySize + 4 + 5)];
                 }
             }
 
@@ -176,7 +175,7 @@ namespace TACTSharp
             public readonly ReadOnlySpan<byte> this[int index] => _keys.AsSpan().Slice(_keyLength * index, _keyLength);
             public readonly int Length => _keys.Length;
 
-            public static readonly EncodingResult Empty = new (0, [], 0);
+            public static readonly EncodingResult Empty = new(0, [], 0);
         }
 
         private readonly record struct EncodingSchema(int CKeySize, int EKeySize, Range EncodingSpec, TableSchema CEKey, TableSchema EKeySpec);
@@ -191,13 +190,18 @@ namespace TACTSharp
             {
                 var entryIndex = fileData[_header].WithStride(_headerEntrySize).LowerBound((itr, needle) =>
                 {
-                    return itr[..needle.Length].SequenceCompareTo(needle).ToOrdering();
-                }, xKey);
+                    var ordering = itr[..needle.Length].SequenceCompareTo(needle).ToOrdering();
+                    return ordering switch
+                    {
+                        Ordering.Equal => Ordering.Less,
+                        _ => ordering
+                    };
+                }, xKey) - 1;
 
                 if (entryIndex * _headerEntrySize > _header.End.Value)
                     return [];
 
-                return fileData.Slice(_pages.Start.Value + _pageSize * (entryIndex - 1), _pageSize);
+                return fileData.Slice(_pages.Start.Value + _pageSize * entryIndex, _pageSize);
             }
         }
     }
