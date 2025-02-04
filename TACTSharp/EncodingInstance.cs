@@ -117,7 +117,7 @@ namespace TACTSharp
             return EncodingResult.Empty;
         }
 
-        public unsafe (string eSpec, ulong encodedFileSize) GetESpec(Span<byte> eKeyTarget)
+        public unsafe (string eSpec, ulong encodedFileSize) GetESpec(ReadOnlySpan<byte> eKeyTarget)
         {
             byte* pageData = null;
             mmapViewHandle.AcquirePointer(ref pageData);
