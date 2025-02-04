@@ -80,7 +80,7 @@ namespace TACTSharp
             }
         }
 
-        public bool TryGetEKeys(Span<byte> cKeyTarget, out EncodingResult? result)
+        public bool TryGetEKeys(ReadOnlySpan<byte> cKeyTarget, out EncodingResult? result)
         {
             result = GetEKeys(cKeyTarget);
             return result.HasValue;
