@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTTool", "TACTTool\TACTTo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTBench", "TACTBench\TACTBench.csproj", "{5E50DCE9-79A2-42FA-AFF5-49252BF54A79}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TACTSharp.Tests", "TACTSharp.Tests\TACTSharp.Tests.csproj", "{32946D37-D81C-4E40-A5E7-460B85FCECCC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{5E50DCE9-79A2-42FA-AFF5-49252BF54A79}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5E50DCE9-79A2-42FA-AFF5-49252BF54A79}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5E50DCE9-79A2-42FA-AFF5-49252BF54A79}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32946D37-D81C-4E40-A5E7-460B85FCECCC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32946D37-D81C-4E40-A5E7-460B85FCECCC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32946D37-D81C-4E40-A5E7-460B85FCECCC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32946D37-D81C-4E40-A5E7-460B85FCECCC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
