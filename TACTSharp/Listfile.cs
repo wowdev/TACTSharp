@@ -57,10 +57,10 @@ namespace TACTSharp
             using (var client = new HttpClient())
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, Settings.ListfileURL);
-                var listfileStream = client.Send(request);
+                var listfileResponse = client.Send(request);
 
                 using (var file = new FileStream("listfile.csv", FileMode.OpenOrCreate, FileAccess.Write))
-                    listfileStream.Content.CopyToAsync(file);
+                    listfileResponse.Content.ReadAsStream().CopyTo(file);
             }
         }
 
