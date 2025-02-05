@@ -13,7 +13,7 @@ namespace TACTSharp
         private readonly MemoryMappedViewAccessor accessor;
         private readonly SafeMemoryMappedViewHandle mmapViewHandle;
 
-        private readonly Dictionary<ulong, RootEntry> entriesLookup = [];
+        private readonly Dictionary<ulong, uint> entriesLookup = [];
         private readonly Dictionary<uint, RootEntry> entriesFDID = [];
 
         [Flags]
@@ -111,8 +111,8 @@ namespace TACTSharp
 
         public RootEntry? GetEntryByLookup(ulong lookup)
         {
-            if (entriesLookup.TryGetValue(lookup, out var entry))
-                return entry;
+            if (entriesLookup.TryGetValue(lookup, out var entryFileDataID))
+                return GetEntryByFDID(entryFileDataID);
 
             return null;
         }
@@ -263,7 +263,7 @@ namespace TACTSharp
                         {
                             entry.lookup = BinaryPrimitives.ReadUInt64LittleEndian(rootdata.Slice(offsetLookup, sizeLookup));
                             offsetLookup += strideLookup;
-                            entriesLookup.TryAdd(entry.lookup, entry);
+                            entriesLookup.TryAdd(entry.lookup, entry.fileDataID);
                         }
                         else
                         {
