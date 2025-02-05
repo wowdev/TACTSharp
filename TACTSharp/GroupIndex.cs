@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 namespace TACTSharp
 {
     // roughly based on schlumpf's implementation
-    public static class GroupIndex
+    public class GroupIndex
     {
         private struct IndexEntry
         {
@@ -14,10 +14,10 @@ namespace TACTSharp
             public uint Offset;
         }
 
-        private static readonly List<IndexEntry> Entries = [];
-        private static readonly Lock entryLock = new();
+        private readonly List<IndexEntry> Entries = [];
+        private readonly Lock entryLock = new();
 
-        public static string Generate(string? hash, string[] archives)
+        public string Generate(CDN CDN, Settings Settings, string? hash, string[] archives)
         {
             if (string.IsNullOrEmpty(hash))
                 Console.WriteLine("Generating group index for unknown group-index");

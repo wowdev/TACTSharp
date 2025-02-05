@@ -19,7 +19,7 @@ namespace TACTSharp
             {
                 if ((char)data[fixedHeaderSize] != 'N' && totalDecompSize == 0)
                     throw new Exception("totalDecompSize must be set for single non-normal BLTE block");
-                else if((char)data[fixedHeaderSize] == 'N' && totalDecompSize == 0)
+                else if ((char)data[fixedHeaderSize] == 'N' && totalDecompSize == 0)
                     totalDecompSize = (ulong)(data.Length - fixedHeaderSize - 1);
 
                 var singleDecompData = new byte[totalDecompSize];

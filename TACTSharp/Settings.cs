@@ -1,15 +1,15 @@
 ﻿namespace TACTSharp
 {
-    public static class Settings
+    public class Settings
     {
-        public static string Region = "us";
-        public static string Product = "wow";
-        public static RootInstance.LocaleFlags Locale = RootInstance.LocaleFlags.enUS;
-        public static string? BaseDir;
-        public static string? BuildConfig;
-        public static string? CDNConfig;
-        public static string CacheDir = "cache";
-        public static bool ListfileFallback = true;
-        public static string ListfileURL = "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
+        public string Region = "us";
+        public string Product = "wow";
+        public RootInstance.LocaleFlags Locale = RootInstance.LocaleFlags.enUS;
+        public string? BaseDir;
+        public string? BuildConfig;
+        public string? CDNConfig;
+        public string CacheDir = "cache";
+        public bool ListfileFallback = true;
+        public string ListfileURL = "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
     }
 }

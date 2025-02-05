@@ -2,10 +2,7 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using TACTSharp;
-using static TACTSharp.RootInstance;
 
 namespace TACTTool
 {
@@ -24,6 +21,8 @@ namespace TACTTool
         private static string? Input;
         private static string? Output;
         private static readonly ConcurrentBag<(byte[] eKey, ulong decodedSize, string fileName)> extractionTargets = [];
+        private static BuildInstance build;
+        private static Listfile listfile = new();
 
         static async Task Main(string[] args)
         {
@@ -38,11 +37,11 @@ namespace TACTTool
             cdnConfigOption.AddAlias("-c");
             rootCommand.AddOption(cdnConfigOption);
 
-            var productOption = new Option<string?>(name: "--product", () => Settings.Product, description: "TACT product to load");
+            var productOption = new Option<string?>(name: "--product", () => "wow", description: "TACT product to load");
             productOption.AddAlias("-p");
             rootCommand.AddOption(productOption);
 
-            var regionOption = new Option<string?>(name: "--region", () => Settings.Region, description: "Region to use for patch service/build selection/CDNs");
+            var regionOption = new Option<string?>(name: "--region", () => "us", description: "Region to use for patch service/build selection/CDNs");
             regionOption.AddAlias("-r");
             rootCommand.AddOption(regionOption);
 
@@ -68,13 +67,18 @@ namespace TACTTool
 
             rootCommand.SetHandler(CommandLineArgHandler);
 
+            build = new BuildInstance();
+
             await rootCommand.InvokeAsync(args);
 
-            if (Settings.BuildConfig == null || Settings.CDNConfig == null)
+            if (build.Settings.BuildConfig == null || build.Settings.CDNConfig == null)
             {
                 Console.WriteLine("Missing build or CDN config, exiting..");
                 return;
             }
+
+            build.LoadConfigs(build.Settings.BuildConfig, build.Settings.CDNConfig);
+
             #endregion
 
             if (Input == null)
@@ -88,7 +92,6 @@ namespace TACTTool
             totalTimer.Start();
 
             buildTimer.Start();
-            var build = new BuildInstance(Settings.BuildConfig, Settings.CDNConfig);
             build.Load();
             buildTimer.Stop();
             Console.WriteLine("Build " + build.BuildConfig.Values["build-name"][0] + " loaded in " + Math.Ceiling(buildTimer.Elapsed.TotalMilliseconds) + "ms");
@@ -172,19 +175,19 @@ namespace TACTTool
                 switch (option.Name)
                 {
                     case "buildconfig":
-                        Settings.BuildConfig = (string)optionValue;
+                        build.Settings.BuildConfig = (string)optionValue;
                         break;
                     case "cdnconfig":
-                        Settings.CDNConfig = (string)optionValue;
+                        build.Settings.CDNConfig = (string)optionValue;
                         break;
                     case "region":
-                        Settings.Region = (string)optionValue;
+                        build.Settings.Region = (string)optionValue;
                         break;
                     case "product":
-                        Settings.Product = (string)optionValue;
+                        build.Settings.Product = (string)optionValue;
                         break;
                     case "locale":
-                        Settings.Locale = ((string)optionValue).ToLower() switch
+                        build.Settings.Locale = ((string)optionValue).ToLower() switch
                         {
                             "dede" => RootInstance.LocaleFlags.deDE,
                             "enus" => RootInstance.LocaleFlags.enUS,
@@ -204,7 +207,7 @@ namespace TACTTool
                         };
                         break;
                     case "basedir":
-                        Settings.BaseDir = (string)optionValue;
+                        build.Settings.BaseDir = (string)optionValue;
                         break;
                     case "inputvalue":
                         Input = (string)optionValue;
@@ -247,36 +250,36 @@ namespace TACTTool
             if (Mode == InputMode.List)
                 Output ??= "extract";
 
-            if (Settings.BaseDir != null)
+            if (build.Settings.BaseDir != null)
             {
                 // Load from build.info
-                var buildInfoPath = Path.Combine(Settings.BaseDir, ".build.info");
+                var buildInfoPath = Path.Combine(build.Settings.BaseDir, ".build.info");
                 if (!File.Exists(buildInfoPath))
                     throw new Exception("No build.info found in base directory, is this a valid WoW installation?");
 
-                var buildInfo = new BuildInfo(buildInfoPath);
+                var buildInfo = new BuildInfo(buildInfoPath, build.Settings, build.cdn);
 
-                if (!buildInfo.Entries.Any(x => x.Product == Settings.Product))
-                    throw new Exception("No build found for product " + Settings.Product + " in .build.info, are you sure this product is installed?");
+                if (!buildInfo.Entries.Any(x => x.Product == build.Settings.Product))
+                    throw new Exception("No build found for product " + build.Settings.Product + " in .build.info, are you sure this product is installed?");
 
-                var build = buildInfo.Entries.First(x => x.Product == Settings.Product);
+                var buildInfoEntry = buildInfo.Entries.First(x => x.Product == build.Settings.Product);
 
-                Settings.BuildConfig ??= build.BuildConfig;
-                Settings.CDNConfig ??= build.CDNConfig;
+                build.Settings.BuildConfig ??= buildInfoEntry.BuildConfig;
+                build.Settings.CDNConfig ??= buildInfoEntry.CDNConfig;
             }
             else
             {
                 // Load from patch service
-                var versions = await CDN.GetProductVersions(Settings.Product);
+                var versions = await build.cdn.GetProductVersions(build.Settings.Product);
                 foreach (var line in versions.Split('\n'))
                 {
-                    if (!line.StartsWith(Settings.Region + "|"))
+                    if (!line.StartsWith(build.Settings.Region + "|"))
                         continue;
 
                     var splitLine = line.Split('|');
 
-                    Settings.BuildConfig ??= splitLine[1];
-                    Settings.CDNConfig ??= splitLine[2];
+                    build.Settings.BuildConfig ??= splitLine[1];
+                    build.Settings.CDNConfig ??= splitLine[2];
                 }
             }
         }
@@ -386,13 +389,13 @@ namespace TACTTool
                     }
                 }
 
-                if (Settings.ListfileFallback)
+                if (build.Settings.ListfileFallback)
                 {
                     Console.WriteLine("No file by name \"" + filename + "\" found in install. Checking listfile.");
-                    if(!Listfile.Initialized)
-                        Listfile.Initialize();
+                    if (!listfile.Initialized)
+                        listfile.Initialize(build.cdn, build.Settings);
 
-                    var listfileID = Listfile.GetFDID(filename);
+                    var listfileID = listfile.GetFDID(filename);
                     if (listfileID == 0)
                     {
                         Console.WriteLine("No file by name \"" + filename + "\" found in listfile. Skipping..");

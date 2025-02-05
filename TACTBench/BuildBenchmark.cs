@@ -16,7 +16,9 @@ namespace TACTBench
 
         public async Task LoadBuild()
         {
-            var versions = await CDN.GetProductVersions("wow");
+            var _build = new BuildInstance();
+
+            var versions = await _build.cdn.GetProductVersions("wow");
             foreach (var line in versions.Split('\n'))
             {
                 if (!line.StartsWith("us|"))
@@ -24,12 +26,12 @@ namespace TACTBench
 
                 var splitLine = line.Split('|');
 
-                Settings.BuildConfig ??= splitLine[1];
-                Settings.CDNConfig ??= splitLine[2];
+                _build.Settings.BuildConfig ??= splitLine[1];
+                _build.Settings.CDNConfig ??= splitLine[2];
                 break;
             }
 
-            var _build = new BuildInstance(Settings.BuildConfig!, Settings.CDNConfig!);
+            _build.LoadConfigs(_build.Settings.BuildConfig, _build.Settings.CDNConfig);
             _build.Load();
         }
 

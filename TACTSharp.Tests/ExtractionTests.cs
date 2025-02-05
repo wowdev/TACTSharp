@@ -11,7 +11,8 @@ namespace TACTSharp.Tests
         public void Initialize()
         {
             // Pinned on 11.1.0.58945, should remain available with archive fallbacks if needed.
-            build = new BuildInstance("f243bb339503142f617fd44d9170338a", "61ae809fa4cead855609d40da0d815e1");
+            build = new BuildInstance();
+            build.LoadConfigs("f243bb339503142f617fd44d9170338a", "61ae809fa4cead855609d40da0d815e1");
             build.Load();
         }
 

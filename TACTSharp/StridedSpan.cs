@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
 
 namespace TACTSharp
 {
@@ -16,8 +11,8 @@ namespace TACTSharp
         public readonly Span<T> this[int index] => _data.Slice(index * _stride, _stride);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator StridedReadOnlySpan<T> (StridedSpan<T> self)
-            => new (self._data, self._stride);
+        public static implicit operator StridedReadOnlySpan<T>(StridedSpan<T> self)
+            => new(self._data, self._stride);
     }
 
     internal readonly ref struct StridedReadOnlySpan<T>(ReadOnlySpan<T> data, int stride)

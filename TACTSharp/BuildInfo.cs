@@ -17,7 +17,7 @@
 
         public List<AvailableBuild> Entries = [];
 
-        public BuildInfo(string path)
+        public BuildInfo(string path, Settings Settings, CDN CDN)
         {
             var headerMap = new Dictionary<string, byte>();
 

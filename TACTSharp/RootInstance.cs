@@ -137,7 +137,7 @@ namespace TACTSharp
             return entriesFDID.ContainsKey(fileDataID);
         }
 
-        unsafe public RootInstance(string path)
+        unsafe public RootInstance(string path, Settings Settings)
         {
             this.rootFile = MemoryMappedFile.CreateFromFile(path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             this.accessor = rootFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);

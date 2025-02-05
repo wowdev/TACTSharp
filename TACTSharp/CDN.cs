@@ -4,19 +4,20 @@ using System.IO.MemoryMappedFiles;
 
 namespace TACTSharp
 {
-    public static class CDN
+    public class CDN
     {
-        private static readonly HttpClient Client = new();
-        private static readonly List<string> CDNServers = [];
-        private static readonly ConcurrentDictionary<string, Lock> FileLocks = [];
-        private static readonly Lock cdnLock = new();
-        private static bool HasLocal = false;
-        private static readonly Dictionary<byte, CASCIndexInstance> CASCIndexInstances = [];
+        private readonly HttpClient Client = new();
+        private readonly List<string> CDNServers = [];
+        private readonly ConcurrentDictionary<string, Lock> FileLocks = [];
+        private readonly Lock cdnLock = new();
+        private bool HasLocal = false;
+        private readonly Dictionary<byte, CASCIndexInstance> CASCIndexInstances = [];
+        private Settings Settings;
 
         // TODO: Memory mapped cache file access?
-        // TODO: Product is build-specific so that might not be good to have statically in Settings/used below
-        static CDN()
+        public CDN(Settings settings)
         {
+            Settings = settings;
             if (Settings.BaseDir != null)
             {
                 try
@@ -34,7 +35,7 @@ namespace TACTSharp
             }
         }
 
-        public static void SetCDNs(string[] cdns)
+        public void SetCDNs(string[] cdns)
         {
             foreach (var cdn in cdns)
             {
@@ -48,7 +49,7 @@ namespace TACTSharp
             }
         }
 
-        private static void LoadCDNs()
+        private void LoadCDNs()
         {
             var timer = new Stopwatch();
             timer.Start();
@@ -89,7 +90,7 @@ namespace TACTSharp
             timer.Stop();
             Console.WriteLine("Pinged " + CDNServers.Count + " in " + Math.Round(timer.Elapsed.TotalMilliseconds) + "ms, fastest CDNs in order: " + string.Join(", ", CDNServers));
         }
-        private static void LoadCASCIndices()
+        private void LoadCASCIndices()
         {
             if (Settings.BaseDir != null)
             {
@@ -111,12 +112,12 @@ namespace TACTSharp
             }
         }
 
-        public static async Task<string> GetProductVersions(string product)
+        public async Task<string> GetProductVersions(string product)
         {
             return await Client.GetStringAsync($"https://{Settings.Region}.version.battle.net/{product}/versions");
         }
 
-        private static byte[] DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
+        private byte[] DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
         {
             if (HasLocal)
             {
@@ -202,7 +203,7 @@ namespace TACTSharp
             return null;
         }
 
-        public static unsafe bool TryGetLocalFile(string eKey, out ReadOnlySpan<byte> data)
+        public unsafe bool TryGetLocalFile(string eKey, out ReadOnlySpan<byte> data)
         {
             var eKeyBytes = Convert.FromHexString(eKey);
             var i = eKeyBytes[0] ^ eKeyBytes[1] ^ eKeyBytes[2] ^ eKeyBytes[3] ^ eKeyBytes[4] ^ eKeyBytes[5] ^ eKeyBytes[6] ^ eKeyBytes[7] ^ eKeyBytes[8];
@@ -251,7 +252,7 @@ namespace TACTSharp
             return false;
         }
 
-        private static byte[] DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size, CancellationToken token = new())
+        private byte[] DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size, CancellationToken token = new())
         {
             if (HasLocal)
             {
@@ -328,7 +329,7 @@ namespace TACTSharp
             return null;
         }
 
-        public static byte[] GetFile(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
+        public byte[] GetFile(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
         {
             var data = DownloadFile(tprDir, type, hash, compressedSize, token);
             if (!decoded)
@@ -337,7 +338,7 @@ namespace TACTSharp
                 return BLTE.Decode(data, decompressedSize);
         }
 
-        public static byte[] GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
+        public byte[] GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
         {
             var data = DownloadFileFromArchive(eKey, tprDir, archive, offset, length, token);
             if (!decoded)
@@ -346,7 +347,7 @@ namespace TACTSharp
                 return BLTE.Decode(data, decompressedSize);
         }
 
-        public static string GetFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, CancellationToken token = new())
+        public string GetFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, CancellationToken token = new())
         {
             var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash);
             if (File.Exists(cachePath))
@@ -362,7 +363,7 @@ namespace TACTSharp
             return cachePath;
         }
 
-        public static string GetDecodedFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
+        public string GetDecodedFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
         {
             var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash + ".decoded");
             if (File.Exists(cachePath))

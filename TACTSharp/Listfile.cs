@@ -2,17 +2,23 @@
 
 namespace TACTSharp
 {
-    public static class Listfile
+    public class Listfile
     {
-        private static Lock listfileLock = new();
-        private static HttpClient client = new();
-        private static Dictionary<ulong, uint> nameHashToFDID = new();
-        private static Jenkins96 hasher = new();
+        private Lock listfileLock = new();
+        private HttpClient client = new();
+        private Dictionary<ulong, uint> nameHashToFDID = new();
+        private Jenkins96 hasher = new();
 
-        public static bool Initialized = false;
+        private CDN CDN;
+        private Settings Settings;
 
-        public static void Initialize()
+        public bool Initialized = false;
+
+        public void Initialize(CDN cdn, Settings settings)
         {
+            CDN = cdn;
+            Settings = settings;
+
             lock (listfileLock)
             {
                 if (Initialized)
@@ -49,7 +55,7 @@ namespace TACTSharp
             }
         }
 
-        private static void Download()
+        private void Download()
         {
             if (string.IsNullOrEmpty(Settings.ListfileURL))
                 throw new Exception("Listfile URL is not set or empty");
@@ -65,7 +71,7 @@ namespace TACTSharp
                     return;
                 }
 
-                if(File.Exists("listfile.csv"))
+                if (File.Exists("listfile.csv"))
                     File.Delete("listfile.csv");
 
                 using (var file = new FileStream("listfile.csv", FileMode.OpenOrCreate, FileAccess.Write))
@@ -73,7 +79,7 @@ namespace TACTSharp
             }
         }
 
-        private static void Load()
+        private void Load()
         {
             var sw = new Stopwatch();
             sw.Start();
@@ -93,13 +99,13 @@ namespace TACTSharp
                         nameHashToFDID[hasher.ComputeHash(parts[1], true)] = fdid;
                 }
             }
-                
+
             sw.Stop();
 
             Console.WriteLine("Loaded " + nameHashToFDID.Count + " listfile entries in " + sw.Elapsed.TotalMilliseconds + "ms");
         }
 
-        public static uint GetFDID(string name)
+        public uint GetFDID(string name)
         {
             return nameHashToFDID.TryGetValue(hasher.ComputeHash(name, true), out var fdid) ? fdid : 0;
         }

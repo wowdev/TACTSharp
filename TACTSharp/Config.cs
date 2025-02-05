@@ -5,11 +5,11 @@ namespace TACTSharp
     public class Config
     {
         public Dictionary<string, string[]> Values = [];
-        public Config(string path, bool isFile)
+        public Config(CDN cdn, string path, bool isFile)
         {
             if (!isFile)
             {
-                foreach (var line in Encoding.UTF8.GetString(CDN.GetFile("wow", "config", path)).Split('\n'))
+                foreach (var line in Encoding.UTF8.GetString(cdn.GetFile("wow", "config", path)).Split('\n'))
                 {
                     var splitLine = line.Split('=');
                     if (splitLine.Length > 1)
