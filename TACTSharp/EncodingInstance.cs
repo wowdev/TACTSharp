@@ -80,13 +80,12 @@ namespace TACTSharp
             }
         }
 
-        public bool TryGetEKeys(ReadOnlySpan<byte> cKeyTarget, out EncodingResult? result)
-        {
-            result = GetEKeys(cKeyTarget);
-            return result.HasValue;
-        }
-
-        public unsafe EncodingResult GetEKeys(ReadOnlySpan<byte> cKeyTarget)
+        /// <summary>
+        /// Returns the result of a lookup for a specific content key.
+        /// </summary>
+        /// <param name="cKeyTarget">The content key to look for.</param>
+        /// <returns></returns>
+        public unsafe EncodingResult FindContentKey(ReadOnlySpan<byte> cKeyTarget)
         {
             byte* pageData = null;
             mmapViewHandle.AcquirePointer(ref pageData);
@@ -173,9 +172,11 @@ namespace TACTSharp
 
             public readonly ulong DecodedFileSize = fileSize;
             public readonly ReadOnlySpan<byte> this[int index] => _keys.AsSpan().Slice(_keyLength * index, _keyLength);
-            public readonly int Length => _keys.Length;
+            public readonly int Length => _keyLength;
 
             public static readonly EncodingResult Empty = new(0, [], 0);
+
+            public static implicit operator bool(EncodingResult self) => self._keyLength != 0;
         }
 
         private readonly record struct EncodingSchema(int CKeySize, int EKeySize, Range EncodingSpec, TableSchema CEKey, TableSchema EKeySpec);

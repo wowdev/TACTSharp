@@ -88,10 +88,11 @@
             if (!BuildConfig.Values.TryGetValue("root", out var rootKey))
                 throw new Exception("No root key found in build config");
 
-            if (!Encoding.TryGetEKeys(Convert.FromHexString(rootKey[0]), out var rootEKeys) || rootEKeys == null)
+            var rootEncodingKeys = Encoding.FindContentKey(Convert.FromHexString(rootKey[0]));
+            if (!rootEncodingKeys)
                 throw new Exception("Root key not found in encoding");
 
-            Root = new RootInstance(CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(rootEKeys.Value[0]), 0, rootEKeys.Value.DecodedFileSize));
+            Root = new RootInstance(CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(rootEncodingKeys[0]), 0, rootEncodingKeys.DecodedFileSize));
             timer.Stop();
             Console.WriteLine("Root loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
@@ -99,10 +100,11 @@
             if (!BuildConfig.Values.TryGetValue("install", out var installKey))
                 throw new Exception("No root key found in build config");
 
-            if (!Encoding.TryGetEKeys(Convert.FromHexString(installKey[0]), out var installEKeys) || installEKeys == null)
+            var installEncodingKeys = Encoding.FindContentKey(Convert.FromHexString(installKey[0]));
+            if (!installEncodingKeys)
                 throw new Exception("Install key not found in encoding");
 
-            Install = new InstallInstance(CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(installEKeys.Value[0]), 0, installEKeys.Value.DecodedFileSize));
+            Install = new InstallInstance(CDN.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(installEncodingKeys[0]), 0, installEncodingKeys.DecodedFileSize));
             timer.Stop();
             Console.WriteLine("Install loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
         }
@@ -124,7 +126,7 @@
             if (Encoding == null)
                 throw new Exception("Encoding not loaded");
 
-            var encodingResult = Encoding.GetEKeys(cKey);
+            var encodingResult = Encoding.FindContentKey(cKey);
             if (encodingResult.Length == 0)
                 throw new Exception("File not found in encoding");
 
