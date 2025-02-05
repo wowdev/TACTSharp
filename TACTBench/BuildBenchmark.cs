@@ -30,7 +30,7 @@ namespace TACTBench
             }
 
             var _build = new BuildInstance(Settings.BuildConfig!, Settings.CDNConfig!);
-            await _build.Load();
+            _build.Load();
         }
 
         [Benchmark]
