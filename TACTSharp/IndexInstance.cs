@@ -76,9 +76,9 @@ namespace TACTSharp
             return begin;
         }
 
-        public unsafe List<(byte[] eKey, int offset, int size)> GetAllEntries()
+        public unsafe List<(byte[] eKey, int offset, int size, int archiveIndex)> GetAllEntries()
         {
-            var entries = new List<(byte[] eKey, int offset, int size)>();
+            var entries = new List<(byte[] eKey, int offset, int size, int archiveIndex)>();
 
             byte* fileData = null;
             try
@@ -92,11 +92,30 @@ namespace TACTSharp
                     {
                         var entry = blockSpan.Slice(j * this.entrySize, this.entrySize);
                         var eKey = entry[..footer.keyBytes].ToArray();
-                        var offset = entry.Slice(footer.keyBytes + footer.sizeBytes, footer.offsetBytes).ReadInt32BE();
-                        var size = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+
+                        var offset = -1;
+                        var size = 0;
+                        var archiveIndex = this.archiveIndex;
+
+                        // TODO: Patch group archive?
+                        if (isGroupArchive)
+                        {
+                            size = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+                            archiveIndex = entry.Slice(footer.keyBytes + footer.sizeBytes, 2).ReadInt16BE();
+                            offset = entry.Slice(footer.keyBytes + footer.sizeBytes + 2, 4).ReadInt32BE();
+                        }
+                        else if (isFileIndex)
+                        {
+                            size = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+                        }
+                        else
+                        {
+                            size = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
+                            offset = entry.Slice(footer.keyBytes + footer.sizeBytes, footer.offsetBytes).ReadInt32BE();
+                        }
 
                         if (size != 0)
-                            entries.Add((eKey, offset, size));
+                            entries.Add((eKey, offset, size, archiveIndex));
                     }
                 }
             }
@@ -141,6 +160,7 @@ namespace TACTSharp
                 if (entry[..footer.keyBytes].SequenceCompareTo(eKeyTarget) != 0)
                     return (-1, -1, -1);
 
+                // TODO: Patch group archive?
                 if (isGroupArchive)
                 {
                     var encodedSize = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();

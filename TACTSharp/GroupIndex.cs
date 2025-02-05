@@ -41,7 +41,7 @@ namespace TACTSharp
 
                 var index = new IndexInstance(indexPath);
                 var allEntries = index.GetAllEntries();
-                foreach (var (eKey, offset, size) in allEntries)
+                foreach (var (eKey, offset, size, _) in allEntries)
                 {
                     lock (entryLock)
                     {
