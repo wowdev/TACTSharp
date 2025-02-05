@@ -376,6 +376,16 @@ namespace TACTTool
             var fileEntries = build.Install.Entries.Where(x => x.name.Equals(filename, StringComparison.InvariantCultureIgnoreCase)).ToList();
             if (fileEntries.Count == 0)
             {
+                using (var hasher = new Jenkins96())
+                {
+                    var entryByLookup = build.Root.GetEntryByLookup(hasher.ComputeHash(filename, true));
+                    if (entryByLookup != null)
+                    {
+                        HandleCKey(build, Convert.ToHexStringLower(entryByLookup.Value.md5.AsSpan()), filename);
+                        return;
+                    }
+                }
+
                 if (Settings.ListfileFallback)
                 {
                     Console.WriteLine("No file by name \"" + filename + "\" found in install. Checking listfile.");
