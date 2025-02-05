@@ -59,6 +59,15 @@ namespace TACTSharp
                 var request = new HttpRequestMessage(HttpMethod.Get, Settings.ListfileURL);
                 var listfileResponse = client.Send(request);
 
+                if (!listfileResponse.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("Failed to download listfile: HTTP " + listfileResponse.StatusCode);
+                    return;
+                }
+
+                if(File.Exists("listfile.csv"))
+                    File.Delete("listfile.csv");
+
                 using (var file = new FileStream("listfile.csv", FileMode.OpenOrCreate, FileAccess.Write))
                     listfileResponse.Content.ReadAsStream().CopyTo(file);
             }
