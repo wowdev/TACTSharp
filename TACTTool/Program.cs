@@ -89,7 +89,7 @@ namespace TACTTool
 
             buildTimer.Start();
             var build = new BuildInstance(Settings.BuildConfig, Settings.CDNConfig);
-            await build.Load();
+            build.Load();
             buildTimer.Stop();
             Console.WriteLine("Build " + build.BuildConfig.Values["build-name"][0] + " loaded in " + Math.Ceiling(buildTimer.Elapsed.TotalMilliseconds) + "ms");
 

@@ -32,7 +32,7 @@
             Console.WriteLine("Configs loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
         }
 
-        public async Task Load()
+        public void Load()
         {
             var timer = new System.Diagnostics.Stopwatch();
 
