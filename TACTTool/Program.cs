@@ -131,6 +131,9 @@ namespace TACTTool
             {
                 var (eKey, decodedSize, fileName) = target;
 
+                fileName = fileName.Replace('\\', Path.DirectorySeparatorChar);
+                fileName = fileName.Replace('/', Path.DirectorySeparatorChar);
+
                 Console.WriteLine("Extracting " + Convert.ToHexStringLower(eKey) + " to " + fileName);
 
                 try
