@@ -60,7 +60,7 @@ namespace TACTSharp
             this.Entries = [];
             for (var i = 0; i < this.NumEntries; i++)
             {
-                var name = installData[offs..].ReadNullTermString();
+                var name = installData[offs..].ReadNullTermString().Replace('/', '\\');
                 offs += name.Length + 1;
 
                 var contentHash = installData.Slice(offs, this.HashSize).ToArray();
@@ -90,7 +90,7 @@ namespace TACTSharp
 
         public struct InstallFileEntry
         {
-            public string name;
+            public string name; // Normalized to \, but not enforced upper/lowercase.
             public byte[] md5;
             public uint size;
             public string[] tags;
