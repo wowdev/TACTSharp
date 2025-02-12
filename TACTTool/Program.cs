@@ -131,6 +131,9 @@ namespace TACTTool
             {
                 var (eKey, decodedSize, fileName) = target;
 
+                fileName = fileName.Replace('\\', Path.DirectorySeparatorChar);
+                fileName = fileName.Replace('/', Path.DirectorySeparatorChar);
+
                 Console.WriteLine("Extracting " + Convert.ToHexStringLower(eKey) + " to " + fileName);
 
                 try
@@ -376,7 +379,7 @@ namespace TACTTool
 
         private static void HandleFileName(BuildInstance build, string filename, string? outputFilename)
         {
-            var fileEntries = build.Install.Entries.Where(x => x.name.Equals(filename, StringComparison.InvariantCultureIgnoreCase)).ToList();
+            var fileEntries = build.Install.Entries.Where(x => x.name.Equals(filename.Replace('/', '\\'), StringComparison.InvariantCultureIgnoreCase)).ToList();
             if (fileEntries.Count == 0)
             {
                 using (var hasher = new Jenkins96())
