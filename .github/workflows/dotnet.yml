@@ -40,7 +40,7 @@ jobs:
     - name: Publish TACTSharp
       run: dotnet publish --configuration ${{ matrix.config }} --no-restore TACTSharp/TACTSharp.csproj
     - name: Test
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --verbosity normal
     - name: Archive TACTTool Release
       uses: thedoctor0/zip-release@main
       with:
