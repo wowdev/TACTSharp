@@ -12,9 +12,7 @@ namespace TACTSharp
             if (data[0] != 0x42 || data[1] != 0x4C || data[2] != 0x54 || data[3] != 0x45)
                 throw new Exception("Invalid BLTE header");
 
-            var blockInfoSize = 24;
             int headerSize = data[4..].ReadInt32BE();
-
             if (headerSize == 0)
             {
                 if ((char)data[fixedHeaderSize] != 'N' && totalDecompSize == 0)
@@ -27,7 +25,13 @@ namespace TACTSharp
                 return singleDecompData;
             }
 
-            //var flags = data[(fixedHeaderSize + 0)];
+            var tableFormat = data[(fixedHeaderSize + 0)];
+            if(tableFormat != 0xF)
+                throw new Exception("Unexpected BLTE table format");
+
+            // If tableFormat is 0x10 this might be 40 instead of 24. Only seen in Avowed (aqua) product. Likely another key.
+            var blockInfoSize = 24;
+
             var chunkCount = data[(fixedHeaderSize + 1)..].ReadInt24BE();
             int infoStart = fixedHeaderSize + 4;
 
