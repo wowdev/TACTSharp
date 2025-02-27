@@ -142,7 +142,10 @@ namespace TACTSharp
 
         public uint[] GetAvailableFDIDs()
         {
-            return [.. entriesFDID.Keys];
+            if (loadedWith == LoadMode.Normal)
+                return [.. entriesFDID.Keys];
+            else
+                return [.. entriesFDIDFull.Keys];
         }
 
         public ulong[] GetAvailableLookups()
@@ -157,7 +160,10 @@ namespace TACTSharp
 
         public bool FileExists(uint fileDataID)
         {
-            return entriesFDID.ContainsKey(fileDataID);
+            if (loadedWith == LoadMode.Normal)
+                return entriesFDID.ContainsKey(fileDataID);
+            else
+                return entriesFDIDFull.ContainsKey(fileDataID);
         }
 
         unsafe public RootInstance(string path, Settings Settings)
