@@ -5,7 +5,7 @@
         public string Region = "us";
         public string Product = "wow";
         public RootInstance.LocaleFlags Locale = RootInstance.LocaleFlags.enUS;
-        public RootInstance.LoadMode RootMode = RootInstance.LoadMode.Full;
+        public RootInstance.LoadMode RootMode = RootInstance.LoadMode.Normal;
         public string? BaseDir;
         public string? BuildConfig;
         public string? CDNConfig;
