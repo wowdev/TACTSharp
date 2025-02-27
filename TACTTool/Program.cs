@@ -360,14 +360,14 @@ namespace TACTTool
                 return;
             }
 
-            var fileEntry = build.Root.GetEntryByFDID(fileDataID);
-            if (fileEntry == null)
+            var fileEntries = build.Root.GetEntriesByFDID(fileDataID);
+            if (fileEntries.Count == 0)
             {
                 Console.WriteLine("Skipping FDID " + fdid + ", not found in root.");
                 return;
             }
 
-            var fileEncodingKeys = build.Encoding.FindContentKey(fileEntry.Value.md5.AsSpan());
+            var fileEncodingKeys = build.Encoding.FindContentKey(fileEntries[0].md5.AsSpan());
             if (!fileEncodingKeys)
             {
                 Console.WriteLine("Skipping FDID " + fdid + ", CKey not found in encoding.");
@@ -384,10 +384,10 @@ namespace TACTTool
             {
                 using (var hasher = new Jenkins96())
                 {
-                    var entryByLookup = build.Root.GetEntryByLookup(hasher.ComputeHash(filename, true));
-                    if (entryByLookup != null)
+                    var entriesByLookup = build.Root.GetEntriesByLookup(hasher.ComputeHash(filename, true));
+                    if (entriesByLookup.Count != 0)
                     {
-                        HandleCKey(build, Convert.ToHexStringLower(entryByLookup.Value.md5.AsSpan()), filename);
+                        HandleCKey(build, Convert.ToHexStringLower(entriesByLookup[0].md5.AsSpan()), filename);
                         return;
                     }
                 }

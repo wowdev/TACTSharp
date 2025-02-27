@@ -133,9 +133,11 @@
             if (Root == null)
                 throw new Exception("Root not loaded");
 
-            var fileData = Root.GetEntryByFDID(fileDataID) ?? throw new Exception("File not found in root");
+            var fileData = Root.GetEntriesByFDID(fileDataID);
+            if(fileData.Count == 0)
+                throw new Exception("File not found in root");
 
-            return OpenFileByCKey(fileData.md5);
+            return OpenFileByCKey(fileData[0].md5.AsSpan());
         }
 
         public byte[] OpenFileByCKey(string cKey) => OpenFileByCKey(Convert.FromHexString(cKey));

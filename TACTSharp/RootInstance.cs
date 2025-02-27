@@ -16,6 +16,22 @@ namespace TACTSharp
         private readonly Dictionary<ulong, uint> entriesLookup = [];
         private readonly Dictionary<uint, RootEntry> entriesFDID = [];
 
+        private readonly Dictionary<uint, List<RootEntry>> entriesFDIDFull = [];
+
+        private LoadMode loadedWith;
+
+        public enum LoadMode
+        {
+            /// <summary>
+            /// Normal mode, fastest and default. Only loads root blocks for a specific locale, storing one RootEntry per FDID.
+            /// </summary>
+            Normal,
+            /// <summary>
+            /// Full mode, slower, more memory intensive. Loads all root blocks and stores all root entries.
+            /// </summary>
+            Full
+        }
+
         [Flags]
         public enum LocaleFlags : uint
         {
@@ -101,20 +117,27 @@ namespace TACTSharp
             public Span<byte> AsSpan() => MemoryMarshal.CreateSpan(ref _element, Length);
         }
 
-        public RootEntry? GetEntryByFDID(uint fileDataID)
+        public List<RootEntry> GetEntriesByFDID(uint fileDataID)
         {
-            if (entriesFDID.TryGetValue(fileDataID, out var entry))
-                return entry;
-
-            return null;
+            if (loadedWith == LoadMode.Normal)
+            {
+                if (entriesFDID.TryGetValue(fileDataID, out var entry))
+                    return [entry];
+            }
+            else
+            {
+                if (entriesFDIDFull.TryGetValue(fileDataID, out var entries))
+                    return entries;
+            }
+            return [];
         }
 
-        public RootEntry? GetEntryByLookup(ulong lookup)
+        public List<RootEntry> GetEntriesByLookup(ulong lookup)
         {
             if (entriesLookup.TryGetValue(lookup, out var entryFileDataID))
-                return GetEntryByFDID(entryFileDataID);
+                return GetEntriesByFDID(entryFileDataID);
 
-            return null;
+            return [];
         }
 
         public uint[] GetAvailableFDIDs()
@@ -226,6 +249,12 @@ namespace TACTSharp
 
                 var skipChunk = localeSkip || contentSkip;
 
+                loadedWith = Settings.RootMode;
+
+                var fullMode = Settings.RootMode == LoadMode.Full;
+                if (fullMode)
+                    skipChunk = false;
+
                 bool separateLookup = newRoot;
                 bool doLookup = !newRoot || !contentFlags.HasFlag(ContentFlags.NoNames);
                 int sizeFdid = 4;
@@ -270,15 +299,26 @@ namespace TACTSharp
                             entry.lookup = 0;
                         }
 
-                        if (!entriesFDID.TryAdd(entry.fileDataID, entry))
+                        if (fullMode)
                         {
-                            //if (!value.md5.SequenceEqual(entries[i].md5))
-                            //{
-                            //    Console.WriteLine("Attempted to add duplicate FDID " + entries[i].fileDataID);
-                            //    Console.WriteLine("\t Existing entry has localeFlags " + value.localeFlags + " and contentFlags " + value.contentFlags + " and ckey " + Convert.ToHexStringLower(value.md5));
-                            //    Console.WriteLine("\t New entry has localeFlags " + entries[i].localeFlags + " and contentFlags " + entries[i].contentFlags + " and ckey " + Convert.ToHexStringLower(entries[i].md5));
-                            //}
+                            if (!entriesFDIDFull.TryGetValue(entry.fileDataID, out List<RootEntry>? entries))
+                                entriesFDIDFull.Add(entry.fileDataID, [entry]);
+                            else
+                                entries.Add(entry);
                         }
+                        else
+                        {
+                            if (!entriesFDID.TryAdd(entry.fileDataID, entry))
+                            {
+                                //if (!value.md5.SequenceEqual(entries[i].md5))
+                                //{
+                                //    Console.WriteLine("Attempted to add duplicate FDID " + entries[i].fileDataID);
+                                //    Console.WriteLine("\t Existing entry has localeFlags " + value.localeFlags + " and contentFlags " + value.contentFlags + " and ckey " + Convert.ToHexStringLower(value.md5));
+                                //    Console.WriteLine("\t New entry has localeFlags " + entries[i].localeFlags + " and contentFlags " + entries[i].contentFlags + " and ckey " + Convert.ToHexStringLower(entries[i].md5));
+                                //}
+                            }
+                        }
+
                     }
                 }
 
