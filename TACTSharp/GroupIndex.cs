@@ -35,8 +35,8 @@ namespace TACTSharp
                 }
                 else
                 {
-                    _ = CDN.GetFile("wow", "data", archives[archiveIndex] + ".index");
-                    indexPath = Path.Combine(Settings.CacheDir, "wow", "data", archives[archiveIndex] + ".index");
+                    _ = CDN.GetFile("data", archives[archiveIndex] + ".index");
+                    indexPath = Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data", archives[archiveIndex] + ".index");
                 }
 
                 var index = new IndexInstance(indexPath);
@@ -160,12 +160,12 @@ namespace TACTSharp
                     if (fullFooterMD5Hash != hash)
                         throw new Exception("Footer MD5 of group index does not match group index filename");
 
-                    File.WriteAllBytes(Path.Combine(Settings.CacheDir, "wow", "data", hash + ".index"), ms.ToArray());
+                    File.WriteAllBytes(Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data", hash + ".index"), ms.ToArray());
                 }
                 else
                 {
                     hash = fullFooterMD5Hash;
-                    File.WriteAllBytes(Path.Combine(Settings.CacheDir, "wow", "data", fullFooterMD5Hash + ".index"), ms.ToArray());
+                    File.WriteAllBytes(Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data", fullFooterMD5Hash + ".index"), ms.ToArray());
                 }
 
                 return hash;

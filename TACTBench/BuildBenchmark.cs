@@ -18,7 +18,7 @@ namespace TACTBench
         {
             var _build = new BuildInstance();
 
-            var versions = await _build.cdn.GetProductVersions("wow");
+            var versions = await _build.cdn.GetPatchServiceFile("wow", "versions");
             foreach (var line in versions.Split('\n'))
             {
                 if (!line.StartsWith("us|"))

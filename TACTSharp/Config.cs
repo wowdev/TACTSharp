@@ -9,7 +9,7 @@ namespace TACTSharp
         {
             if (!isFile)
             {
-                foreach (var line in Encoding.UTF8.GetString(cdn.GetFile("wow", "config", path)).Split('\n'))
+                foreach (var line in Encoding.UTF8.GetString(cdn.GetFile("config", path)).Split('\n'))
                 {
                     var splitLine = line.Split('=');
                     if (splitLine.Length > 1)

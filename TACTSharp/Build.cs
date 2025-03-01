@@ -57,7 +57,7 @@
                 Console.WriteLine("No group index found in CDN config, generating fresh group index...");
                 var groupIndex = new GroupIndex();
                 var groupIndexHash = groupIndex.Generate(cdn, Settings, "", CDNConfig.Values["archives"]);
-                var groupIndexPath = Path.Combine(Settings.CacheDir, "wow", "data", groupIndexHash + ".index");
+                var groupIndexPath = Path.Combine(Settings.CacheDir, cdn.ProductDirectory, "data", groupIndexHash + ".index");
                 GroupIndex = new IndexInstance(groupIndexPath);
             }
             else
@@ -68,7 +68,7 @@
                 }
                 else
                 {
-                    var groupIndexPath = Path.Combine(Settings.CacheDir, "wow", "data", groupArchiveIndex[0] + ".index");
+                    var groupIndexPath = Path.Combine(Settings.CacheDir, cdn.ProductDirectory, "data", groupArchiveIndex[0] + ".index");
                     if (!File.Exists(groupIndexPath))
                     {
                         var groupIndex = new GroupIndex();
@@ -90,7 +90,7 @@
             }
             else
             {
-                var fileIndexPath = cdn.GetFilePath("wow", "data", fileIndex[0] + ".index");
+                var fileIndexPath = cdn.GetFilePath("data", fileIndex[0] + ".index");
                 FileIndex = new IndexInstance(fileIndexPath);
             }
 
@@ -99,7 +99,7 @@
 
             var encodingSize = ulong.Parse(BuildConfig.Values["encoding-size"][0]);
             timer.Restart();
-            Encoding = new EncodingInstance(cdn.GetDecodedFilePath("wow", "data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), encodingSize), (int)encodingSize);
+            Encoding = new EncodingInstance(cdn.GetDecodedFilePath("data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), encodingSize), (int)encodingSize);
             timer.Stop();
             Console.WriteLine("Encoding loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
@@ -111,7 +111,7 @@
             if (!rootEncodingKeys)
                 throw new Exception("Root key not found in encoding");
 
-            Root = new RootInstance(cdn.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(rootEncodingKeys[0]), 0, rootEncodingKeys.DecodedFileSize), Settings);
+            Root = new RootInstance(cdn.GetDecodedFilePath("data", Convert.ToHexStringLower(rootEncodingKeys[0]), 0, rootEncodingKeys.DecodedFileSize), Settings);
             timer.Stop();
             Console.WriteLine("Root loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
@@ -123,7 +123,7 @@
             if (!installEncodingKeys)
                 throw new Exception("Install key not found in encoding");
 
-            Install = new InstallInstance(cdn.GetDecodedFilePath("wow", "data", Convert.ToHexStringLower(installEncodingKeys[0]), 0, installEncodingKeys.DecodedFileSize));
+            Install = new InstallInstance(cdn.GetDecodedFilePath("data", Convert.ToHexStringLower(installEncodingKeys[0]), 0, installEncodingKeys.DecodedFileSize));
             timer.Stop();
             Console.WriteLine("Install loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
         }
@@ -170,16 +170,16 @@
                 if (fileIndexEntry.size == -1)
                 {
                     Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
-                    fileBytes = cdn.GetFile("wow", "data", Convert.ToHexStringLower(eKey), 0, decodedSize, true);
+                    fileBytes = cdn.GetFile("data", Convert.ToHexStringLower(eKey), 0, decodedSize, true);
                 }
                 else
                 {
-                    fileBytes = cdn.GetFile("wow", "data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true);
+                    fileBytes = cdn.GetFile("data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true);
                 }
             }
             else
             {
-                fileBytes = cdn.GetFileFromArchive(Convert.ToHexStringLower(eKey), "wow", CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true);
+                fileBytes = cdn.GetFileFromArchive(Convert.ToHexStringLower(eKey), CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true);
             }
 
             return fileBytes;

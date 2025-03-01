@@ -14,6 +14,10 @@ namespace TACTSharp
         private readonly Dictionary<byte, CASCIndexInstance> CASCIndexInstances = [];
         private Settings Settings;
 
+        // TODO: The implementation around this needs improving. For local installations, this comes from .build.info. For remote this is set by the first CDN server it retrieves.
+        // However, if ProductDirectory is accessed before the first CDN is loaded (or if not set through .build.info loading) it'll be null.
+        public string ProductDirectory;
+
         // TODO: Memory mapped cache file access?
         public CDN(Settings settings)
         {
@@ -67,6 +71,9 @@ namespace TACTSharp
                 if (splitLine.Length < 2)
                     continue;
 
+                if (string.IsNullOrEmpty(ProductDirectory))
+                    ProductDirectory = splitLine[1];
+
                 CDNServers.AddRange(splitLine[2].Trim().Split(' '));
             }
 
@@ -112,12 +119,12 @@ namespace TACTSharp
             }
         }
 
-        public async Task<string> GetProductVersions(string product)
+        public async Task<string> GetPatchServiceFile(string product, string file = "versions")
         {
-            return await Client.GetStringAsync($"https://{Settings.Region}.version.battle.net/{product}/versions");
+            return await Client.GetStringAsync($"https://{Settings.Region}.version.battle.net/{product}/{file}");
         }
 
-        private byte[] DownloadFile(string tprDir, string type, string hash, ulong size = 0, CancellationToken token = new())
+        private byte[] DownloadFile(string type, string hash, ulong size = 0, CancellationToken token = new())
         {
             if (HasLocal)
             {
@@ -147,7 +154,15 @@ namespace TACTSharp
                 }
             }
 
-            var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash);
+            lock (cdnLock)
+            {
+                if (CDNServers.Count == 0)
+                {
+                    LoadCDNs();
+                }
+            }
+
+            var cachePath = Path.Combine(Settings.CacheDir, ProductDirectory, type, hash);
             FileLocks.TryAdd(cachePath, new Lock());
 
             if (File.Exists(cachePath))
@@ -159,18 +174,10 @@ namespace TACTSharp
                         return File.ReadAllBytes(cachePath);
             }
 
-            lock (cdnLock)
-            {
-                if (CDNServers.Count == 0)
-                {
-                    LoadCDNs();
-                }
-            }
-
             var success = false;
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"http://{CDNServers[i]}/tpr/{tprDir}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
+                var url = $"http://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
                 Console.WriteLine("Downloading " + url);
 
@@ -252,7 +259,7 @@ namespace TACTSharp
             return false;
         }
 
-        private byte[] DownloadFileFromArchive(string eKey, string tprDir, string archive, int offset, int size, CancellationToken token = new())
+        private byte[] DownloadFileFromArchive(string eKey, string archive, int offset, int size, CancellationToken token = new())
         {
             if (HasLocal)
             {
@@ -267,7 +274,7 @@ namespace TACTSharp
                 }
             }
 
-            var cachePath = Path.Combine(Settings.CacheDir, tprDir, "data", eKey);
+            var cachePath = Path.Combine(Settings.CacheDir, ProductDirectory, "data", eKey);
             FileLocks.TryAdd(cachePath, new Lock());
 
             if (File.Exists(cachePath))
@@ -290,7 +297,7 @@ namespace TACTSharp
             var success = false;
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"http://{CDNServers[i]}/tpr/{tprDir}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
+                var url = $"http://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
 
                 Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size);
 
@@ -329,31 +336,31 @@ namespace TACTSharp
             return null;
         }
 
-        public byte[] GetFile(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
+        public byte[] GetFile(string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
         {
-            var data = DownloadFile(tprDir, type, hash, compressedSize, token);
+            var data = DownloadFile(type, hash, compressedSize, token);
             if (!decoded)
                 return data;
             else
                 return BLTE.Decode(data, decompressedSize);
         }
 
-        public byte[] GetFileFromArchive(string eKey, string tprDir, string archive, int offset, int length, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
+        public byte[] GetFileFromArchive(string eKey, string archive, int offset, int length, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
         {
-            var data = DownloadFileFromArchive(eKey, tprDir, archive, offset, length, token);
+            var data = DownloadFileFromArchive(eKey, archive, offset, length, token);
             if (!decoded)
                 return data;
             else
                 return BLTE.Decode(data, decompressedSize);
         }
 
-        public string GetFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, CancellationToken token = new())
+        public string GetFilePath(string type, string hash, ulong compressedSize = 0, CancellationToken token = new())
         {
-            var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash);
+            var cachePath = Path.Combine(Settings.CacheDir, ProductDirectory, type, hash);
             if (File.Exists(cachePath))
                 return cachePath;
 
-            var data = DownloadFile(tprDir, type, hash, compressedSize, token);
+            var data = DownloadFile(type, hash, compressedSize, token);
             Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 
             FileLocks.TryAdd(cachePath, new Lock());
@@ -363,13 +370,13 @@ namespace TACTSharp
             return cachePath;
         }
 
-        public string GetDecodedFilePath(string tprDir, string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
+        public string GetDecodedFilePath(string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, CancellationToken token = new())
         {
-            var cachePath = Path.Combine(Settings.CacheDir, tprDir, type, hash + ".decoded");
+            var cachePath = Path.Combine(Settings.CacheDir, ProductDirectory, type, hash + ".decoded");
             if (File.Exists(cachePath))
                 return cachePath;
 
-            var data = DownloadFile(tprDir, type, hash, compressedSize, token);
+            var data = DownloadFile(type, hash, compressedSize, token);
             var decodedData = BLTE.Decode(data, decompressedSize);
             Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 

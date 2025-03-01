@@ -269,11 +269,12 @@ namespace TACTTool
 
                 build.Settings.BuildConfig ??= buildInfoEntry.BuildConfig;
                 build.Settings.CDNConfig ??= buildInfoEntry.CDNConfig;
+                build.cdn.ProductDirectory ??= buildInfoEntry.CDNPath;
             }
             else
             {
                 // Load from patch service
-                var versions = await build.cdn.GetProductVersions(build.Settings.Product);
+                var versions = await build.cdn.GetPatchServiceFile(build.Settings.Product, "versions");
                 foreach (var line in versions.Split('\n'))
                 {
                     if (!line.StartsWith(build.Settings.Region + "|"))
