@@ -139,7 +139,7 @@ namespace TACTSharp.Extensions
         /// <param name="needle">The value to compare the elements to.</param>
         /// <returns>The index of the first element in range that is not ordered before the needle, or an index past the end.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int LowerBound<T>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T> cmp, ref T needle)
+        public static int LowerBound<T>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T> cmp, scoped ref T needle)
         {
             var size = haystack.Length;
             var left = 0;
@@ -148,6 +148,7 @@ namespace TACTSharp.Extensions
             while (left < right)
             {
                 var mid = left + size / 2;
+                // If you need to ask, ReadOnlySpan.Item(int) doesn't allow the return value to be taken by ref.
                 var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), ref needle);
 
                 switch (ordering)
@@ -208,7 +209,7 @@ namespace TACTSharp.Extensions
         /// <param name="needle">The value to compare the elements to.</param>
         /// <returns>The index of the first element in range that is not ordered before the needle, or an index past the end.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int UpperBound<T>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T> cmp, ref T needle)
+        public static int UpperBound<T>(this ReadOnlySpan<T> haystack, BinarySearchComparer<T> cmp, scoped ref T needle)
         {
             var size = haystack.Length;
             var left = 0;
@@ -217,6 +218,7 @@ namespace TACTSharp.Extensions
             while (left < right)
             {
                 var mid = left + size / 2;
+                // If you need to ask, ReadOnlySpan.Item(int) doesn't allow the return value to be taken by ref.
                 var ordering = cmp(ref Unsafe.Add(ref MemoryMarshal.GetReference(haystack), mid), ref needle);
 
                 switch (ordering)
@@ -239,15 +241,15 @@ namespace TACTSharp.Extensions
         // ^^^ Upper bound / Array shorthands vvv
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int UpperBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
+        public static int UpperBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, scoped ref T needle)
             => UpperBound(haystack.AsSpan(), cmp, ref needle);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int LowerBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
+        public static int LowerBound<T>(this T[] haystack, BinarySearchComparer<T> cmp, scoped ref T needle)
             => LowerBound(haystack.AsSpan(), cmp, ref needle);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this T[] haystack, BinarySearchComparer<T> cmp, ref T needle)
+        public static int BinarySearch<T>(this T[] haystack, BinarySearchComparer<T> cmp, scoped ref T needle)
             => BinarySearch(haystack.AsSpan(), cmp, ref needle);
     }
 }
