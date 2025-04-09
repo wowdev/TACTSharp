@@ -51,6 +51,9 @@
 
             var timer = new System.Diagnostics.Stopwatch();
 
+            if (!string.IsNullOrEmpty(Settings.BaseDir))
+                cdn.OpenLocal();
+
             timer.Start();
             if (!CDNConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
             {

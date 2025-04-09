@@ -22,6 +22,10 @@ namespace TACTSharp
         public CDN(Settings settings)
         {
             Settings = settings;
+        }
+
+        public void OpenLocal()
+        {
             if (Settings.BaseDir != null)
             {
                 try
