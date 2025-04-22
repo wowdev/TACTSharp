@@ -28,6 +28,9 @@ namespace TACTSharp
         {
             if (Settings.BaseDir != null)
             {
+                if (CASCIndexInstances.Count > 0)
+                    return;
+
                 try
                 {
                     var localTimer = new Stopwatch();
@@ -108,6 +111,9 @@ namespace TACTSharp
                 var dataDir = Path.Combine(Settings.BaseDir, "Data", "data");
                 if (Directory.Exists(dataDir))
                 {
+                    if(CASCIndexInstances.Count > 0)
+                        return;
+
                     var indexFiles = Directory.GetFiles(dataDir, "*.idx");
                     foreach (var indexFile in indexFiles)
                     {
