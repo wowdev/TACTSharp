@@ -146,6 +146,12 @@ namespace TACTSharp
             return nameHashToFDID.TryGetValue(hasher.ComputeHash(name, true), out var fdid) ? fdid : 0;
         }
 
+        public void SetListfileEntry(uint fdid, string name)
+        {
+            nameHashToFDID[hasher.ComputeHash(name, true)] = fdid;
+            fdidToName[fdid] = name;
+        }
+
         public string? GetFilename(uint fdid)
         {
             if (fdidToName.Count == 0)
