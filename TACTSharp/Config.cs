@@ -9,7 +9,11 @@ namespace TACTSharp
         {
             if (!isFile)
             {
-                foreach (var line in Encoding.UTF8.GetString(cdn.GetFile("config", path)).Split('\n'))
+                var file = Encoding.UTF8.GetString(cdn.GetFile("config", path));
+                if (file[0] != '#')
+                    throw new IOException("Config file is unreadable");
+
+                foreach (var line in file.Split('\n'))
                 {
                     var splitLine = line.Split('=');
                     if (splitLine.Length > 1)
@@ -18,7 +22,11 @@ namespace TACTSharp
             }
             else
             {
-                foreach (var line in File.ReadAllLines(path))
+                var file = File.ReadAllLines(path);
+                if (file[0][0] != '#')
+                    throw new IOException("Config file is unreadable");
+
+                foreach (var line in file)
                 {
                     var splitLine = line.Split('=');
                     if (splitLine.Length > 1)

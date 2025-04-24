@@ -111,7 +111,7 @@ namespace TACTSharp
                 var dataDir = Path.Combine(Settings.BaseDir, "Data", "data");
                 if (Directory.Exists(dataDir))
                 {
-                    if(CASCIndexInstances.Count > 0)
+                    if (CASCIndexInstances.Count > 0)
                         return;
 
                     var indexFiles = Directory.GetFiles(dataDir, "*.idx");
@@ -205,9 +205,18 @@ namespace TACTSharp
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 
-                    using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
+                    try
                     {
-                        response.Content.ReadAsStream(token).CopyTo(fileStream);
+                        using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
+                        {
+                            response.Content.ReadAsStream(token).CopyTo(fileStream);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Failed to download file: " + e.Message);
+                        File.Delete(cachePath);
+                        continue;
                     }
                 }
 
@@ -331,9 +340,18 @@ namespace TACTSharp
                 {
                     Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
 
-                    using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
+                    try
                     {
-                        response.Content.ReadAsStream(token).CopyTo(fileStream);
+                        using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
+                        {
+                            response.Content.ReadAsStream(token).CopyTo(fileStream);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Failed to download file: " + e.Message);
+                        File.Delete(cachePath);
+                        continue;
                     }
                 }
 
