@@ -7,24 +7,34 @@ namespace TACTSharp
         private Lock listfileLock = new();
         private HttpClient client = new();
         private Dictionary<ulong, uint> nameHashToFDID = new();
+        private Dictionary<uint, string> fdidToName = new();
         private Jenkins96 hasher = new();
 
         private CDN CDN;
         private Settings Settings;
+        private string ListfilePath = "listfile.csv";
 
         public bool Initialized = false;
 
-        public void Initialize(CDN cdn, Settings settings)
+        public void Initialize(CDN cdn, Settings settings, string path = "listfile.csv", bool useExisting = false)
         {
             CDN = cdn;
             Settings = settings;
+            ListfilePath = path;
 
             lock (listfileLock)
             {
+                if(useExisting && File.Exists(path))
+                {
+                    Load();
+                    Initialized = true;
+                    return;
+                }
+
                 if (Initialized)
                     return;
 
-                var fileInfo = new FileInfo("listfile.csv");
+                var fileInfo = new FileInfo(path);
                 if (!fileInfo.Exists)
                 {
                     Console.WriteLine("Downloading listfile.csv");
@@ -71,10 +81,10 @@ namespace TACTSharp
                     return;
                 }
 
-                if (File.Exists("listfile.csv"))
-                    File.Delete("listfile.csv");
+                if (File.Exists(ListfilePath))
+                    File.Delete(ListfilePath);
 
-                using (var file = new FileStream("listfile.csv", FileMode.OpenOrCreate, FileAccess.Write))
+                using (var file = new FileStream(ListfilePath, FileMode.OpenOrCreate, FileAccess.Write))
                     listfileResponse.Content.ReadAsStream().CopyTo(file);
             }
         }
@@ -83,7 +93,7 @@ namespace TACTSharp
         {
             var sw = new Stopwatch();
             sw.Start();
-            using (var file = new StreamReader("listfile.csv"))
+            using (var file = new StreamReader(ListfilePath))
             {
                 while (!file.EndOfStream)
                 {
@@ -105,9 +115,46 @@ namespace TACTSharp
             Console.WriteLine("Loaded " + nameHashToFDID.Count + " listfile entries in " + sw.Elapsed.TotalMilliseconds + "ms");
         }
 
+        private void LoadFilenames()
+        {
+            var sw = new Stopwatch();
+            sw.Start();
+            using (var file = new StreamReader(ListfilePath))
+            {
+                while (!file.EndOfStream)
+                {
+                    var line = file.ReadLine();
+                    if (line == null)
+                        continue;
+
+                    var parts = line.Split(';');
+                    if (parts.Length < 2)
+                        continue;
+
+                    if (uint.TryParse(parts[0], out var fdid))
+                        fdidToName[fdid] = parts[1];
+                }
+            }
+
+            sw.Stop();
+
+            Console.WriteLine("Loaded " + fdidToName.Count + " listfile filename entries in " + sw.Elapsed.TotalMilliseconds + "ms");
+        }
+
         public uint GetFDID(string name)
         {
             return nameHashToFDID.TryGetValue(hasher.ComputeHash(name, true), out var fdid) ? fdid : 0;
+        }
+
+        public string? GetFilename(uint fdid)
+        {
+            if (fdidToName.Count == 0)
+                LoadFilenames();
+
+            if (fdidToName.TryGetValue(fdid, out var name))
+                return name;
+            else
+                return null;
         }
     }
 }
