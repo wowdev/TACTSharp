@@ -184,7 +184,6 @@ namespace TACTSharp
                         return File.ReadAllBytes(cachePath);
             }
 
-            var success = false;
             for (var i = 0; i < CDNServers.Count; i++)
             {
                 var url = $"http://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
@@ -223,10 +222,7 @@ namespace TACTSharp
                 return File.ReadAllBytes(cachePath);
             }
 
-            if (!success)
-                throw new FileNotFoundException("Exhausted all CDNs trying to download " + hash);
-
-            return null;
+            throw new FileNotFoundException("Exhausted all CDNs trying to download " + hash);
         }
 
         public unsafe bool TryGetLocalFile(string eKey, out ReadOnlySpan<byte> data)
@@ -313,7 +309,6 @@ namespace TACTSharp
                 }
             }
 
-            var success = false;
             for (var i = 0; i < CDNServers.Count; i++)
             {
                 var url = $"http://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
@@ -358,10 +353,7 @@ namespace TACTSharp
                 return File.ReadAllBytes(cachePath);
             }
 
-            if (!success)
-                throw new FileNotFoundException("Exhausted all CDNs trying to download " + eKey + " (archive " + archive + ")");
-
-            return null;
+            throw new FileNotFoundException("Exhausted all CDNs trying to download " + eKey + " (archive " + archive + ")");
         }
 
         public byte[] GetFile(string type, string hash, ulong compressedSize = 0, ulong decompressedSize = 0, bool decoded = false, CancellationToken token = new())
