@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 
 namespace TACTSharp
@@ -90,23 +91,28 @@ namespace TACTSharp
                 var ofsStartOfTocEkeys = outputNumBlocks * outputBlockSizeBytes;
                 var ofsStartOfTocBlockHashes = ofsStartOfTocEkeys + outputFooter.keyBytes * outputNumBlocks;
 
-                for (var i = 0; i < outputNumBlocks; i++)
-                {
-                    var startOfBlock = i * outputBlockSizeBytes;
-                    bin.BaseStream.Position = startOfBlock;
+                // See https://github.com/dotnet/runtime/issues/115033 and GroupIndexBlockBench for why we're using a span over entries here.
+                // Not that it matters a ton since groupindex gen should only run once per cdnconfig, but still.
+                var entriesSpan = CollectionsMarshal.AsSpan(Entries);
+                int totalBlocks = (entriesSpan.Length + outputEntriesPerBlock - 1) / outputEntriesPerBlock;
 
-                    var blockEntries = Entries.Skip(i * outputEntriesPerBlock).Take(outputEntriesPerBlock).ToArray();
-                    for (var j = 0; j < blockEntries.Length; j++)
+                for (int blockIndex = 0; blockIndex < totalBlocks; blockIndex++)
+                {
+                    int start = blockIndex * outputEntriesPerBlock;
+                    int length = Math.Min(outputEntriesPerBlock, entriesSpan.Length - start);
+                    var blockSpan = entriesSpan.Slice(start, length);
+                    bin.BaseStream.Position = blockIndex * outputBlockSizeBytes;
+
+                    foreach (var entry in blockSpan)
                     {
-                        var entry = blockEntries[j];
                         bin.Write(entry.EKey);
                         bin.Write(BinaryPrimitives.ReverseEndianness(entry.Size));
                         bin.Write(BinaryPrimitives.ReverseEndianness((short)entry.ArchiveIndex));
                         bin.Write(BinaryPrimitives.ReverseEndianness(entry.Offset));
                     }
-                    bin.BaseStream.Position = ofsStartOfTocEkeys + i * outputFooter.keyBytes;
-                    bin.Write(blockEntries.Last().EKey);
-                    bin.BaseStream.Position = ofsStartOfTocBlockHashes + i * outputFooter.hashBytes;
+                    bin.BaseStream.Position = ofsStartOfTocEkeys + blockIndex * outputFooter.keyBytes;
+                    bin.Write(blockSpan[^1].EKey);
+                    bin.BaseStream.Position = ofsStartOfTocBlockHashes + blockIndex * outputFooter.hashBytes;
                     bin.Write(new byte[outputFooter.hashBytes]);
                 }
 
