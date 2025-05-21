@@ -75,7 +75,7 @@
                     if (!File.Exists(groupIndexPath))
                     {
                         var groupIndex = new GroupIndex();
-                        groupIndex.Generate(cdn, Settings, groupArchiveIndex[0], CDNConfig.Values["archives"]);
+                        groupIndex.Generate(cdn, Settings, groupArchiveIndex[0], CDNConfig.Values["archives"], true);
                     }
                     GroupIndex = new IndexInstance(groupIndexPath);
                 }
@@ -93,8 +93,15 @@
             }
             else
             {
-                var fileIndexPath = cdn.GetFilePath("data", fileIndex[0] + ".index");
-                FileIndex = new IndexInstance(fileIndexPath);
+                try
+                {
+                    var fileIndexPath = cdn.GetFilePath("data", fileIndex[0] + ".index");
+                    FileIndex = new IndexInstance(fileIndexPath);
+
+                }catch(Exception e)
+                {
+                    Console.WriteLine("Failed to load file index: " + e.Message);
+                }
             }
 
             timer.Stop();
@@ -161,7 +168,7 @@
 
         public byte[] OpenFileByEKey(ReadOnlySpan<byte> eKey, ulong decodedSize = 0)
         {
-            if (GroupIndex == null || FileIndex == null)
+            if (GroupIndex == null)
                 throw new Exception("Indexes not loaded");
 
             var (offset, size, archiveIndex) = GroupIndex.GetIndexInfo(eKey);
@@ -169,23 +176,20 @@
 
             if (offset == -1)
             {
-                var fileIndexEntry = FileIndex.GetIndexInfo(eKey);
-                if (fileIndexEntry.size == -1)
+                if(FileIndex != null)
                 {
-                    Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
-                    fileBytes = cdn.GetFile("data", Convert.ToHexStringLower(eKey), 0, decodedSize, true);
+                    var fileIndexEntry = FileIndex.GetIndexInfo(eKey);
+                    if (fileIndexEntry.size != -1)
+                        return cdn.GetFile("data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true);
                 }
-                else
-                {
-                    fileBytes = cdn.GetFile("data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true);
-                }
+
+                Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
+                return cdn.GetFile("data", Convert.ToHexStringLower(eKey), 0, decodedSize, true);
             }
             else
             {
-                fileBytes = cdn.GetFileFromArchive(Convert.ToHexStringLower(eKey), CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true);
+                return cdn.GetFileFromArchive(Convert.ToHexStringLower(eKey), CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true);
             }
-
-            return fileBytes;
         }
     }
 }

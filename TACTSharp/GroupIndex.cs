@@ -18,7 +18,7 @@ namespace TACTSharp
         private readonly List<IndexEntry> Entries = [];
         private readonly Lock entryLock = new();
 
-        public string Generate(CDN CDN, Settings Settings, string? hash, string[] archives)
+        public string Generate(CDN CDN, Settings Settings, string? hash, string[] archives, bool allowPartial = false)
         {
             if (string.IsNullOrEmpty(hash))
                 Console.WriteLine("Generating group index for unknown group-index");
@@ -41,7 +41,18 @@ namespace TACTSharp
                 }
                 else
                 {
-                    _ = CDN.GetFile("data", archives[archiveIndex] + ".index");
+                    try
+                    {
+                        _ = CDN.GetFile("data", archives[archiveIndex] + ".index");
+                    }
+                    catch(Exception e)
+                    {
+                        Console.WriteLine("Failed to load index file " + archives[archiveIndex] + ".index: " + e.Message);
+                        if (allowPartial)
+                            return;
+                        else
+                            throw;
+                    }
                     indexPath = Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data", archives[archiveIndex] + ".index");
                 }
 
@@ -168,7 +179,7 @@ namespace TACTSharp
 
                 if (!string.IsNullOrEmpty(hash))
                 {
-                    if (fullFooterMD5Hash != hash)
+                    if (fullFooterMD5Hash != hash && !allowPartial)
                         throw new Exception("Footer MD5 of group index does not match group index filename");
 
                     if (!Directory.Exists(Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data")))
