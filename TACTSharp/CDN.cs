@@ -319,22 +319,21 @@ namespace TACTSharp
             if (!string.IsNullOrEmpty(Settings.CDNDir))
             {
                 var cdnPath = Path.Combine(Settings.CDNDir, ProductDirectory, "data", $"{archive[0]}{archive[1]}", $"{archive[2]}{archive[3]}", archive);
+                FileLocks.TryAdd(cdnPath, new Lock());
                 if (File.Exists(cdnPath))
                 {
-                    if (new FileInfo(cdnPath).Length != (offset + size))
-                        Console.WriteLine("Warning! Found " + archive + " in CDN dir but size is lower than offset+size " + offset + size + " != " + new FileInfo(cachePath).Length + ", continuing to download.");
+                    if (new FileInfo(cdnPath).Length < (offset + size))
+                        Console.WriteLine("Warning! Found " + archive + " in CDN dir but size is lower than offset+size " + offset + size + " != " + new FileInfo(cdnPath).Length + ", continuing to download.");
                     else
                     {
                         lock (FileLocks[cdnPath])
                         {
-                            using (var ms = new MemoryStream())
+                            using (var fs = new FileStream(cdnPath, FileMode.Open, FileAccess.Read))
                             {
-                                using (var fs = new FileStream(cdnPath, FileMode.Open, FileAccess.Read))
-                                {
-                                    var buffer = new byte[size];
-                                    fs.ReadExactly(buffer, offset, size);
-                                    return buffer;
-                                }
+                                var buffer = new byte[size];
+                                fs.Seek(offset, SeekOrigin.Begin);
+                                fs.ReadExactly(buffer);
+                                return buffer;
                             }
                         }
                     }
