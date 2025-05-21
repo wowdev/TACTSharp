@@ -172,7 +172,7 @@ namespace TACTSharp
 
             public readonly ulong DecodedFileSize = fileSize;
             public readonly ReadOnlySpan<byte> this[int index] => _keys.AsSpan().Slice(_keyLength * index, _keyLength);
-            public readonly int Length => _keyLength;
+            public readonly int Length => keyCount;
 
             public static readonly EncodingResult Empty = new(0, [], 0);
 
