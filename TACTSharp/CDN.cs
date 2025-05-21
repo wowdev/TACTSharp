@@ -184,6 +184,21 @@ namespace TACTSharp
                         return File.ReadAllBytes(cachePath);
             }
 
+            if (!string.IsNullOrEmpty(Settings.CDNDir))
+            {
+                var cdnPath = Path.Combine(Settings.CDNDir, ProductDirectory, type, $"{hash[0]}{hash[1]}", $"{hash[2]}{hash[3]}", hash);
+                FileLocks.TryAdd(cdnPath, new Lock());
+
+                if (File.Exists(cdnPath))
+                {
+                    if (size > 0 && (ulong)new FileInfo(cdnPath).Length != size)
+                        Console.WriteLine("Warning! Found " + hash + " in CDN dir but size does not match! " + size + " != " + new FileInfo(cachePath).Length + ", continuing to download.");
+                    else
+                        lock (FileLocks[cdnPath])
+                            return File.ReadAllBytes(cdnPath);
+                }
+            }
+
             for (var i = 0; i < CDNServers.Count; i++)
             {
                 var url = $"http://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
@@ -299,6 +314,31 @@ namespace TACTSharp
                         return File.ReadAllBytes(cachePath);
                 else
                     File.Delete(cachePath);
+            }
+
+            if (!string.IsNullOrEmpty(Settings.CDNDir))
+            {
+                var cdnPath = Path.Combine(Settings.CDNDir, ProductDirectory, "data", $"{archive[0]}{archive[1]}", $"{archive[2]}{archive[3]}", archive);
+                if (File.Exists(cdnPath))
+                {
+                    if (new FileInfo(cdnPath).Length != (offset + size))
+                        Console.WriteLine("Warning! Found " + archive + " in CDN dir but size is lower than offset+size " + offset + size + " != " + new FileInfo(cachePath).Length + ", continuing to download.");
+                    else
+                    {
+                        lock (FileLocks[cdnPath])
+                        {
+                            using (var ms = new MemoryStream())
+                            {
+                                using (var fs = new FileStream(cdnPath, FileMode.Open, FileAccess.Read))
+                                {
+                                    var buffer = new byte[size];
+                                    fs.ReadExactly(buffer, offset, size);
+                                    return buffer;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             lock (cdnLock)

@@ -10,6 +10,7 @@
         public string? BuildConfig;
         public string? CDNConfig;
         public string CacheDir = "cache";
+        public string CDNDir = "";
         public bool ListfileFallback = true;
         public string ListfileURL = "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
     }

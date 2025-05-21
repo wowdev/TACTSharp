@@ -29,10 +29,15 @@ namespace TACTSharp
 
             Parallel.For(0, archives.Length, archiveIndex =>
             {
+                var archiveName = archives[archiveIndex];
                 string indexPath = "";
-                if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", archives[archiveIndex] + ".index")))
+                if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", archiveName + ".index")))
                 {
-                    indexPath = Path.Combine(Settings.BaseDir, "Data", "indices", archives[archiveIndex] + ".index");
+                    indexPath = Path.Combine(Settings.BaseDir, "Data", "indices", archiveName + ".index");
+                }
+                else if(!string.IsNullOrEmpty(Settings.CDNDir) && File.Exists(Path.Combine(Settings.CDNDir, CDN.ProductDirectory, "data", $"{archiveName[0]}{archiveName[1]}", $"{archiveName[2]}{archiveName[3]}", archiveName + ".index")))
+                {
+                    indexPath = Path.Combine(Settings.CDNDir, CDN.ProductDirectory, "data", $"{archiveName[0]}{archiveName[1]}", $"{archiveName[2]}{archiveName[3]}", archiveName + ".index");
                 }
                 else
                 {
@@ -165,6 +170,9 @@ namespace TACTSharp
                 {
                     if (fullFooterMD5Hash != hash)
                         throw new Exception("Footer MD5 of group index does not match group index filename");
+
+                    if (!Directory.Exists(Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data")))
+                        Directory.CreateDirectory(Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data"));
 
                     File.WriteAllBytes(Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data", hash + ".index"), ms.ToArray());
                 }

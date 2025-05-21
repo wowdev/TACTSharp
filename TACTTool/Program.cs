@@ -65,6 +65,10 @@ namespace TACTTool
             baseDirOption.AddAlias("-d");
             rootCommand.AddOption(baseDirOption);
 
+            var cdnDirOption = new Option<string?>(name: "--cdndir", description: "CDN folder to use as read-only file cache (if available)");
+            cdnDirOption.AddAlias("-cdn");
+            rootCommand.AddOption(cdnDirOption);
+
             rootCommand.SetHandler(CommandLineArgHandler);
 
             build = new BuildInstance();
@@ -234,7 +238,9 @@ namespace TACTTool
                             _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
                         };
                         break;
-
+                    case "cdndir":
+                        build.Settings.CDNDir = (string)optionValue;
+                        break;
                     case "version":
                     case "help":
                         break;
