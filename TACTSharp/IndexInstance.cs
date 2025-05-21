@@ -9,8 +9,9 @@ namespace TACTSharp
         private readonly long indexSize;
         private IndexFooter footer;
         private readonly short archiveIndex = -1;
-        private readonly bool isFileIndex;
-        private readonly bool isGroupArchive;
+        public readonly bool isFileIndex;
+        public readonly bool isCDNIndex;
+        public readonly bool isGroupIndex;
 
         private readonly MemoryMappedFile indexFile;
         private readonly MemoryMappedViewAccessor accessor;
@@ -37,7 +38,8 @@ namespace TACTSharp
                 accessor.Read(0, out footer);
 
             isFileIndex = footer.offsetBytes == 0;
-            isGroupArchive = footer.offsetBytes == 6;
+            isCDNIndex = footer.offsetBytes == 4;
+            isGroupIndex = footer.offsetBytes == 6;
 
             this.blockSizeBytes = footer.blockSizeKBytes << 10;
             this.entrySize = footer.keyBytes + footer.sizeBytes + footer.offsetBytes;
@@ -98,7 +100,7 @@ namespace TACTSharp
                         var archiveIndex = this.archiveIndex;
 
                         // TODO: Patch group archive?
-                        if (isGroupArchive)
+                        if (isGroupIndex)
                         {
                             size = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
                             archiveIndex = entry.Slice(footer.keyBytes + footer.sizeBytes, 2).ReadInt16BE();
@@ -161,7 +163,7 @@ namespace TACTSharp
                     return (-1, -1, -1);
 
                 // TODO: Patch group archive?
-                if (isGroupArchive)
+                if (isGroupIndex)
                 {
                     var encodedSize = entry.Slice(footer.keyBytes, footer.sizeBytes).ReadInt32BE();
                     var fileArchiveIndex = entry.Slice(footer.keyBytes + footer.sizeBytes, 2).ReadInt16BE();
