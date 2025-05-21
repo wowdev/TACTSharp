@@ -1,11 +1,12 @@
 ﻿using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Security.Cryptography;
 
 namespace TACTSharp
 {
     public static class BLTE
     {
-        public static byte[] Decode(ReadOnlySpan<byte> data, ulong totalDecompSize = 0)
+        public static byte[] Decode(ReadOnlySpan<byte> data, ulong totalDecompSize = 0, bool verify = false)
         {
             var fixedHeaderSize = 8;
 
@@ -26,7 +27,7 @@ namespace TACTSharp
             }
 
             var tableFormat = data[(fixedHeaderSize + 0)];
-            if(tableFormat != 0xF)
+            if (tableFormat != 0xF)
                 throw new Exception("Unexpected BLTE table format");
 
             // If tableFormat is 0x10 this might be 40 instead of 24. Only seen in Avowed (aqua) product. Likely another key.
@@ -46,6 +47,7 @@ namespace TACTSharp
             }
 
             var decompData = new byte[totalDecompSize];
+
             var infoOffset = infoStart;
             int compOffset = headerSize;
             int decompOffset = 0;
@@ -54,9 +56,16 @@ namespace TACTSharp
             {
                 var compSize = data[(infoOffset + 0)..].ReadInt32BE();
                 var decompSize = data[(infoOffset + 4)..].ReadInt32BE();
-                // var checkSum = data[(infoOffset+8)..(infoOffset+8+16)];
 
                 HandleDataBlock((char)data[compOffset], data[(compOffset + 1)..(compOffset + compSize)], chunkIndex, decompData.AsSpan().Slice(decompOffset, decompSize));
+
+                if (verify)
+                {
+                    var checkSum = data[(infoOffset + 8)..(infoOffset + 8 + 16)];
+                    var compHash = MD5.HashData(data[(compOffset)..(compOffset + compSize)]);
+                    if (!compHash.AsSpan().SequenceEqual(checkSum))
+                        throw new InvalidDataException($"Checksum mismatch for compressed chunk {chunkIndex}");
+                }
 
                 infoOffset += blockInfoSize;
                 compOffset += compSize;
