@@ -199,6 +199,9 @@ namespace TACTSharp
                 }
             }
 
+            if (!Settings.TryCDN)
+                throw new FileNotFoundException();
+
             for (var i = 0; i < CDNServers.Count; i++)
             {
                 var url = $"http://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
@@ -339,6 +342,9 @@ namespace TACTSharp
                     }
                 }
             }
+
+            if (!Settings.TryCDN)
+                throw new FileNotFoundException();
 
             lock (cdnLock)
             {
