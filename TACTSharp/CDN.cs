@@ -115,13 +115,31 @@ namespace TACTSharp
                         return;
 
                     var indexFiles = Directory.GetFiles(dataDir, "*.idx");
+                    var highestIndexPerBucket = new Dictionary<byte, int>(16);
+
                     foreach (var indexFile in indexFiles)
                     {
                         if (indexFile.Contains("tempfile"))
                             continue;
 
-                        var indexBucket = Convert.FromHexString(Path.GetFileNameWithoutExtension(indexFile)[0..2])[0];
-                        CASCIndexInstances.TryAdd(indexBucket, new CASCIndexInstance(indexFile));
+                        var indexBucket = Convert.ToByte(Path.GetFileNameWithoutExtension(indexFile)[0..2], 16);
+                        var indexVersion = Convert.ToInt32(Path.GetFileNameWithoutExtension(indexFile)[2..], 16);
+
+                        if(highestIndexPerBucket.TryGetValue(indexBucket, out var highestIndex))
+                        {
+                            if (indexVersion > highestIndex)
+                                highestIndexPerBucket[indexBucket] = indexVersion;
+                        }
+                        else
+                        {
+                            highestIndexPerBucket.Add(indexBucket, indexVersion);
+                        }
+                    }
+
+                    foreach (var index in highestIndexPerBucket)
+                    {
+                        var indexFile = Path.Combine(dataDir, index.Key.ToString("x2") + index.Value.ToString("x2").PadLeft(8, '0') + ".idx");
+                        CASCIndexInstances.Add(index.Key, new CASCIndexInstance(indexFile));
                     }
 
                     HasLocal = true;
