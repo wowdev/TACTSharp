@@ -7,7 +7,7 @@ namespace TACTSharp
     public class CDN
     {
         private readonly HttpClient Client = new();
-        private readonly List<string> CDNServers = [];
+        private List<string> CDNServers = [];
         private readonly ConcurrentDictionary<string, Lock> FileLocks = [];
         private readonly Lock cdnLock = new();
         private bool HasLocal = false;
@@ -84,20 +84,30 @@ namespace TACTSharp
                 CDNServers.AddRange(splitLine[2].Trim().Split(' '));
             }
 
+            CDNServers.AddRange(Settings.AdditionalCDNs);
+
             var pingTasks = new List<Task<(string server, long ping)>>();
-            foreach (var server in CDNServers)
+            foreach (var server in CDNServers.Distinct())
             {
                 pingTasks.Add(Task.Run(() =>
                 {
-                    var ping = new System.Net.NetworkInformation.Ping().Send(server, 400).RoundtripTime;
-                    Console.WriteLine("Ping to " + server + ": " + ping + "ms");
-                    return (server, ping);
+                    try
+                    {
+                        var ping = new System.Net.NetworkInformation.Ping().Send(server, 400).RoundtripTime;
+                        Console.WriteLine("Ping to " + server + ": " + ping + "ms");
+                        return (server, ping);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Failed to ping CDN " + server + ": " + (e.InnerException != null ? e.InnerException.Message : e.Message));
+                        return (server, 99999);
+                    }
                 }));
             }
 
             var pings = Task.WhenAll(pingTasks).Result;
 
-            CDNServers.AddRange(pings.OrderBy(p => p.ping).Select(p => p.server).ToList());
+            CDNServers = [.. pings.OrderBy(p => p.ping).Where(p => p.ping != 99999).Select(p => p.server)];
 
             timer.Stop();
             Console.WriteLine("Pinged " + CDNServers.Count + " in " + Math.Round(timer.Elapsed.TotalMilliseconds) + "ms, fastest CDNs in order: " + string.Join(", ", CDNServers));
@@ -123,7 +133,7 @@ namespace TACTSharp
                         var indexBucket = Convert.ToByte(Path.GetFileNameWithoutExtension(indexFile)[0..2], 16);
                         var indexVersion = Convert.ToInt32(Path.GetFileNameWithoutExtension(indexFile)[2..], 16);
 
-                        if(highestIndexPerBucket.TryGetValue(indexBucket, out var highestIndex))
+                        if (highestIndexPerBucket.TryGetValue(indexBucket, out var highestIndex))
                         {
                             if (indexVersion > highestIndex)
                                 highestIndexPerBucket[indexBucket] = indexVersion;
