@@ -84,8 +84,6 @@ namespace TACTSharp
                 CDNServers.AddRange(splitLine[2].Trim().Split(' '));
             }
 
-            CDNServers.Add("archive.wow.tools");
-
             var pingTasks = new List<Task<(string server, long ping)>>();
             foreach (var server in CDNServers)
             {
