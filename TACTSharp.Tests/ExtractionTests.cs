@@ -10,17 +10,17 @@ namespace TACTSharp.Tests
         [TestInitialize]
         public void Initialize()
         {
-            // Pinned on 11.1.0.58945, should remain available with archive fallbacks if needed.
+            // Pinned on 9.0.1.35078, should still be available as long as it is on wowe1.
             build = new BuildInstance();
-            build.LoadConfigs("f243bb339503142f617fd44d9170338a", "61ae809fa4cead855609d40da0d815e1");
+            build.LoadConfigs("43a001a23efd4193a96266be43fe67d8", "c67fdeccf96e2a0ddf205e0a7e8f1927");
             build.Load();
         }
 
         [TestMethod]
         public void ExtractEXE()
         {
-            var filename = "WowT.exe";
-            var expectedMD5 = "a9d720ccc4d81a27bae481bafae6be3a";
+            var filename = "WowB.exe";
+            var expectedMD5 = "923754949b474d581fd9fdd2c1c32912";
 
             var fileEntries = build.Install.Entries.Where(x => x.name.Equals(filename, StringComparison.InvariantCultureIgnoreCase)).ToList();
             if (fileEntries.Count == 0)
