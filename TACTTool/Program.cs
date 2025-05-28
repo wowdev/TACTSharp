@@ -66,7 +66,7 @@ namespace TACTTool
             rootCommand.AddOption(baseDirOption);
 
             var cdnDirOption = new Option<string?>(name: "--cdndir", description: "CDN folder to use as read-only file cache (if available)");
-            cdnDirOption.AddAlias("-cdnd");
+            cdnDirOption.AddAlias("-cd");
             rootCommand.AddOption(cdnDirOption);
 
             var additionalCDNsOption = new Option<string?>(name: "--cdns", description: "Additional CDN hostnames to use, separated by commas (only specify hostnames)");
