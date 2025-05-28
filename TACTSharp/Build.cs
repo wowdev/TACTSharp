@@ -83,35 +83,48 @@
             timer.Stop();
             Console.WriteLine("Group index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
-            timer.Restart();
-            if (!CDNConfig.Values.TryGetValue("file-index", out var fileIndex))
-                throw new Exception("No file index found in CDN config");
-
-            if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", fileIndex[0] + ".index")))
+            ulong decodedEncodingSize = 0;
+            ulong encodedEncodingSize = 0;
+            if (BuildConfig.Values.TryGetValue("encoding-size", out var bcEncodingSize))
             {
-                FileIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "Data", "indices", fileIndex[0] + ".index"));
+                decodedEncodingSize = ulong.Parse(bcEncodingSize[0]);
+                encodedEncodingSize = ulong.Parse(bcEncodingSize[1]);
+            }
+
+            timer.Restart();
+            Encoding = new EncodingInstance(cdn.GetDecodedFilePath("data", BuildConfig.Values["encoding"][1], encodedEncodingSize, decodedEncodingSize), (int)decodedEncodingSize);
+            timer.Stop();
+            Console.WriteLine("Encoding loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+
+            timer.Restart();
+            if (CDNConfig.Values.TryGetValue("file-index", out var fileIndex))
+            {
+                if (!string.IsNullOrEmpty(Settings.BaseDir) && File.Exists(Path.Combine(Settings.BaseDir, "Data", "indices", fileIndex[0] + ".index")))
+                {
+                    FileIndex = new IndexInstance(Path.Combine(Settings.BaseDir, "Data", "indices", fileIndex[0] + ".index"));
+                }
+                else
+                {
+                    try
+                    {
+                        var fileIndexPath = cdn.GetFilePath("data", fileIndex[0] + ".index");
+                        FileIndex = new IndexInstance(fileIndexPath);
+
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Failed to load file index: " + e.Message);
+                    }
+                }
+
+                timer.Stop();
+                Console.WriteLine("File index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
             }
             else
             {
-                try
-                {
-                    var fileIndexPath = cdn.GetFilePath("data", fileIndex[0] + ".index");
-                    FileIndex = new IndexInstance(fileIndexPath);
-
-                }catch(Exception e)
-                {
-                    Console.WriteLine("Failed to load file index: " + e.Message);
-                }
+                // TODO: We might want to manually build up file-index based on encoding entries not present in indexes.
+                Console.WriteLine("No file index found in CDN config, skipping file index loading.");
             }
-
-            timer.Stop();
-            Console.WriteLine("File index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
-
-            var encodingSize = ulong.Parse(BuildConfig.Values["encoding-size"][0]);
-            timer.Restart();
-            Encoding = new EncodingInstance(cdn.GetDecodedFilePath("data", BuildConfig.Values["encoding"][1], ulong.Parse(BuildConfig.Values["encoding-size"][1]), encodingSize), (int)encodingSize);
-            timer.Stop();
-            Console.WriteLine("Encoding loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
             timer.Restart();
             if (!BuildConfig.Values.TryGetValue("root", out var rootKey))
@@ -144,7 +157,7 @@
                 throw new Exception("Root not loaded");
 
             var fileData = Root.GetEntriesByFDID(fileDataID);
-            if(fileData.Count == 0)
+            if (fileData.Count == 0)
                 throw new Exception("File not found in root");
 
             return OpenFileByCKey(fileData[0].md5.AsSpan());
@@ -176,7 +189,7 @@
 
             if (offset == -1)
             {
-                if(FileIndex != null)
+                if (FileIndex != null)
                 {
                     var fileIndexEntry = FileIndex.GetIndexInfo(eKey);
                     if (fileIndexEntry.size != -1)

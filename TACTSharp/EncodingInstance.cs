@@ -22,10 +22,14 @@ namespace TACTSharp
 
         public static readonly EncodingResult Zero = new(0, [], 0);
 
-        public EncodingInstance(string filePath, int fileSize)
+        public EncodingInstance(string filePath, int fileSize = 0)
         {
             _filePath = filePath;
-            _fileSize = fileSize;
+
+            if (fileSize != 0)
+                _fileSize = fileSize;
+            else
+                _fileSize = (int)new FileInfo(filePath).Length;
 
             this.encodingFile = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
             this.accessor = encodingFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
