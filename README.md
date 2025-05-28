@@ -7,7 +7,7 @@ Largely based on @bloerwald's memory-mapped file reading implementations.
 - Loads both online and local World of Warcraft installations.
 - Loading of game files by ekey, ckey, ID or by name from install/root manifest or listfile (only loaded if name not in install/root).
 - Ability to use a folder with CDN-structured files as a data source (similar to local WoW installs).
-- 
+
 ## TODO for 1.0
 - Stabilize and lock-in API usage.
 - Support for encrypted products.
