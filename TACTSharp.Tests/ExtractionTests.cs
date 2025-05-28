@@ -12,6 +12,7 @@ namespace TACTSharp.Tests
         {
             // Pinned on 9.0.1.35078, should still be available as long as it is on wowe1.
             build = new BuildInstance();
+            build.Settings.AdditionalCDNs.AddRange("casc.wago.tools", "cdn.arctium.tools");
             build.LoadConfigs("43a001a23efd4193a96266be43fe67d8", "c67fdeccf96e2a0ddf205e0a7e8f1927");
             build.Load();
         }
