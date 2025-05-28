@@ -6,12 +6,12 @@ Largely based on @bloerwald's memory-mapped file reading implementations.
 - Faster build loading time and lower memory footprint compared to other solutions.
 - Loads both online and local World of Warcraft installations.
 - Loading of game files by ekey, ckey, ID or by name from install/root manifest or listfile (only loaded if name not in install/root).
-
+- Ability to use a folder with CDN-structured files as a data source (similar to local WoW installs).
+- 
 ## TODO for 1.0
 - Stabilize and lock-in API usage.
 - Support for encrypted products.
 - Support for specifying install tag priority (so e.g. the exe for WoW China can be extracted).
-- Ability to use a folder with CDN-structured files as a data source (similar to local WoW installs).
 - Test run on all available WoW CDN data to data starting at 6.0.
 - Automated tests.
 
@@ -39,9 +39,12 @@ Options:
   -l, --locale <locale>            Locale to use for file retrieval [default: enUS]
   -m, --mode <mode>                Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)
   -i, --inputvalue <inputvalue>    Input value for extraction
-  -o, --output <output>            Output path for extracted files, folder for list mode (defaults to 'extract' folder), output filename for other input modes (defaults
-                                   to input value as filename)
-  -d, --basedir <basedir>          WoW installation folder to use as source for build info and read-only file cache (if available)
+  -o, --output <output>            Output path for extracted files, folder for list mode (defaults to 'extract'
+                                   folder), output filename for other input modes (defaults to input value as filename)
+  -d, --basedir <basedir>          WoW installation folder to use as source for build info and read-only file cache (if
+                                   available)
+  -cd, --cdndir <cdndir>           CDN folder to use as read-only file cache (if available)
+  --cdns <cdns>                    Additional CDN hostnames to use, separated by commas (only specify hostnames)
   --version                        Show version information
   -?, -h, --help                   Show help and usage information
 ```
