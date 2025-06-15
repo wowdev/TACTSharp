@@ -16,7 +16,7 @@ namespace TACTSharp
 
         // TODO: The implementation around this needs improving. For local installations, this comes from .build.info. For remote this is set by the first CDN server it retrieves.
         // However, if ProductDirectory is accessed before the first CDN is loaded (or if not set through .build.info loading) it'll be null.
-        public string ProductDirectory;
+        public string ProductDirectory = string.Empty;
 
         // TODO: Memory mapped cache file access?
         public CDN(Settings settings)
@@ -26,23 +26,23 @@ namespace TACTSharp
 
         public void OpenLocal()
         {
-            if (Settings.BaseDir != null)
-            {
-                if (CASCIndexInstances.Count > 0)
-                    return;
+            if (string.IsNullOrEmpty(Settings.BaseDir))
+                return;
 
-                try
-                {
-                    var localTimer = new Stopwatch();
-                    localTimer.Start();
-                    LoadCASCIndices();
-                    localTimer.Stop();
-                    Console.WriteLine("Loaded local CASC indices in " + Math.Round(localTimer.Elapsed.TotalMilliseconds) + "ms");
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("Failed to load CASC indices: " + e.Message);
-                }
+            if (CASCIndexInstances.Count > 0)
+                return;
+
+            try
+            {
+                var localTimer = new Stopwatch();
+                localTimer.Start();
+                LoadCASCIndices();
+                localTimer.Stop();
+                Console.WriteLine("Loaded local CASC indices in " + Math.Round(localTimer.Elapsed.TotalMilliseconds) + "ms");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Failed to load CASC indices: " + e.Message);
             }
         }
 
@@ -168,13 +168,13 @@ namespace TACTSharp
                 {
                     if (type == "data" && hash.EndsWith(".index"))
                     {
-                        var localIndexPath = Path.Combine(Settings.BaseDir, "Data", "indices", hash);
+                        var localIndexPath = Path.Combine(Settings.BaseDir!, "Data", "indices", hash);
                         if (File.Exists(localIndexPath))
                             return File.ReadAllBytes(localIndexPath);
                     }
                     else if (type == "config")
                     {
-                        var localConfigPath = Path.Combine(Settings.BaseDir, "Data", "config", hash[0] + "" + hash[1], hash[2] + "" + hash[3], hash);
+                        var localConfigPath = Path.Combine(Settings.BaseDir!, "Data", "config", hash[0] + "" + hash[1], hash[2] + "" + hash[3], hash);
                         if (File.Exists(localConfigPath))
                             return File.ReadAllBytes(localConfigPath);
                     }
@@ -271,6 +271,9 @@ namespace TACTSharp
 
         public unsafe bool TryGetLocalFile(string eKey, out ReadOnlySpan<byte> data)
         {
+            if(string.IsNullOrEmpty(Settings.BaseDir))
+                throw new DirectoryNotFoundException("Base directory not set");
+
             var eKeyBytes = Convert.FromHexString(eKey);
             var i = eKeyBytes[0] ^ eKeyBytes[1] ^ eKeyBytes[2] ^ eKeyBytes[3] ^ eKeyBytes[4] ^ eKeyBytes[5] ^ eKeyBytes[6] ^ eKeyBytes[7] ^ eKeyBytes[8];
             var indexBucket = (i & 0xf) ^ (i >> 4);

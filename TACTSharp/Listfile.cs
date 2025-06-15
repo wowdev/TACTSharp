@@ -4,14 +4,14 @@ namespace TACTSharp
 {
     public class Listfile
     {
-        private Lock listfileLock = new();
-        private HttpClient client = new();
-        private Dictionary<ulong, uint> nameHashToFDID = new();
-        private Dictionary<uint, string> fdidToName = new();
-        private Jenkins96 hasher = new();
+        private readonly Lock listfileLock = new();
+        private readonly HttpClient client = new();
+        private readonly Jenkins96 hasher = new();
+        private readonly Dictionary<ulong, uint> nameHashToFDID =[];
+        private readonly Dictionary<uint, string> fdidToName = [];
 
-        private CDN CDN;
-        private Settings Settings;
+        private CDN? CDN;
+        private Settings? Settings;
         private string ListfilePath = "listfile.csv";
 
         public bool Initialized = false;
@@ -67,7 +67,7 @@ namespace TACTSharp
 
         private void Download()
         {
-            if (string.IsNullOrEmpty(Settings.ListfileURL))
+            if (string.IsNullOrEmpty(Settings!.ListfileURL))
                 throw new Exception("Listfile URL is not set or empty");
 
             using (var client = new HttpClient())

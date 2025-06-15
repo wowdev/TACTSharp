@@ -189,6 +189,7 @@ namespace TACTSharp
             }
         }
 
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
         private unsafe struct IndexFooter
         {
             public byte formatRevision;
@@ -202,5 +203,6 @@ namespace TACTSharp
             public uint numElements;
             public fixed byte bytefooterHash[8];
         }
+#pragma warning restore CS0649
     }
 }

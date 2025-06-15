@@ -32,11 +32,11 @@ namespace TACTSharp
         /// <returns>A symmetric encryptor object.</returns>
         public Salsa20CryptoTransform CreateEncryptor(ReadOnlySpan<byte> rgbKey, ReadOnlySpan<byte> rgbIV)
         {
-            if (rgbKey == null)
-                throw new ArgumentNullException("rgbKey");
+            if (rgbKey.IsEmpty)
+                throw new ArgumentNullException(nameof(rgbKey));
             if (!ValidKeySize(rgbKey.Length * 8))
                 throw new CryptographicException("Invalid key size; it must be 128 or 256 bits.");
-            CheckValidIV(rgbIV, "rgbIV");
+            CheckValidIV(rgbIV, nameof(rgbIV));
 
             return new Salsa20CryptoTransform(rgbKey, rgbIV, 20);
         }
@@ -49,7 +49,7 @@ namespace TACTSharp
         // Verifies that iv is a legal value for a Salsa20 IV.
         private static void CheckValidIV(ReadOnlySpan<byte> iv, string paramName)
         {
-            if (iv == null)
+            if (iv.IsEmpty)
                 throw new ArgumentNullException(paramName);
             if (iv.Length != 8)
                 throw new CryptographicException("Invalid IV size; it must be 8 bytes.");
@@ -66,7 +66,29 @@ namespace TACTSharp
                 Debug.Assert(iv.Length == 8, "abyIV.Length == 8", "Invalid IV size.");
                 Debug.Assert(rounds == 8 || rounds == 12 || rounds == 20, "rounds == 8 || rounds == 12 || rounds == 20", "Invalid number of rounds.");
 
-                Initialize(key, iv);
+                m_state = new uint[16];
+                m_state[1] = ToUInt32(key, 0);
+                m_state[2] = ToUInt32(key, 4);
+                m_state[3] = ToUInt32(key, 8);
+                m_state[4] = ToUInt32(key, 12);
+
+                ReadOnlySpan<byte> constants = key.Length == 32 ? c_sigma : c_tau;
+                int keyIndex = key.Length - 16;
+
+                m_state[11] = ToUInt32(key, keyIndex + 0);
+                m_state[12] = ToUInt32(key, keyIndex + 4);
+                m_state[13] = ToUInt32(key, keyIndex + 8);
+                m_state[14] = ToUInt32(key, keyIndex + 12);
+                m_state[0] = ToUInt32(constants, 0);
+                m_state[5] = ToUInt32(constants, 4);
+                m_state[10] = ToUInt32(constants, 8);
+                m_state[15] = ToUInt32(constants, 12);
+
+                m_state[6] = ToUInt32(iv, 0);
+                m_state[7] = ToUInt32(iv, 4);
+                m_state[8] = 0;
+                m_state[9] = 0;
+
                 m_rounds = rounds;
             }
 
@@ -93,18 +115,18 @@ namespace TACTSharp
             public int TransformBlock(ReadOnlySpan<byte> inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
             {
                 // check arguments
-                if (inputBuffer == null)
-                    throw new ArgumentNullException("inputBuffer");
+                if (inputBuffer.IsEmpty)
+                    throw new ArgumentNullException(nameof(inputBuffer));
                 if (inputOffset < 0 || inputOffset >= inputBuffer.Length)
-                    throw new ArgumentOutOfRangeException("inputOffset");
+                    throw new ArgumentOutOfRangeException(nameof(inputOffset));
                 if (inputCount < 0 || inputOffset + inputCount > inputBuffer.Length)
-                    throw new ArgumentOutOfRangeException("inputCount");
-                if (outputBuffer == null)
-                    throw new ArgumentNullException("outputBuffer");
+                    throw new ArgumentOutOfRangeException(nameof(inputCount));
+
+                ArgumentNullException.ThrowIfNull(outputBuffer);
+
                 if (outputOffset < 0 || outputOffset + inputCount > outputBuffer.Length)
-                    throw new ArgumentOutOfRangeException("outputOffset");
-                if (m_state == null)
-                    throw new ObjectDisposedException(GetType().Name);
+                    throw new ArgumentOutOfRangeException(nameof(outputOffset));
+                ObjectDisposedException.ThrowIf(m_state == null, this);
 
                 byte[] output = new byte[64];
                 int bytesTransformed = 0;
@@ -134,19 +156,11 @@ namespace TACTSharp
 
             public byte[] TransformFinalBlock(ReadOnlySpan<byte> inputBuffer, int inputOffset, int inputCount)
             {
-                if (inputCount < 0)
-                    throw new ArgumentOutOfRangeException("inputCount");
+                ArgumentOutOfRangeException.ThrowIfNegative(inputCount);
 
                 byte[] output = new byte[inputCount];
                 TransformBlock(inputBuffer, inputOffset, inputCount, output, 0);
                 return output;
-            }
-
-            public void Dispose()
-            {
-                if (m_state != null)
-                    Array.Clear(m_state, 0, m_state.Length);
-                m_state = null;
             }
 
             private static uint Rotate(uint v, int c)
@@ -208,32 +222,6 @@ namespace TACTSharp
                     ToBytes(Add(state[index], input[index]), output, 4 * index);
             }
 
-            private void Initialize(ReadOnlySpan<byte> key, ReadOnlySpan<byte> iv)
-            {
-                m_state = new uint[16];
-                m_state[1] = ToUInt32(key, 0);
-                m_state[2] = ToUInt32(key, 4);
-                m_state[3] = ToUInt32(key, 8);
-                m_state[4] = ToUInt32(key, 12);
-
-                ReadOnlySpan<byte> constants = key.Length == 32 ? c_sigma : c_tau;
-                int keyIndex = key.Length - 16;
-
-                m_state[11] = ToUInt32(key, keyIndex + 0);
-                m_state[12] = ToUInt32(key, keyIndex + 4);
-                m_state[13] = ToUInt32(key, keyIndex + 8);
-                m_state[14] = ToUInt32(key, keyIndex + 12);
-                m_state[0] = ToUInt32(constants, 0);
-                m_state[5] = ToUInt32(constants, 4);
-                m_state[10] = ToUInt32(constants, 8);
-                m_state[15] = ToUInt32(constants, 12);
-
-                m_state[6] = ToUInt32(iv, 0);
-                m_state[7] = ToUInt32(iv, 4);
-                m_state[8] = 0;
-                m_state[9] = 0;
-            }
-
             private static uint ToUInt32(ReadOnlySpan<byte> input, int inputOffset)
             {
                 return unchecked((uint)(((input[inputOffset] | (input[inputOffset + 1] << 8)) | (input[inputOffset + 2] << 16)) | (input[inputOffset + 3] << 24)));
@@ -253,7 +241,7 @@ namespace TACTSharp
             static readonly byte[] c_sigma = Encoding.ASCII.GetBytes("expand 32-byte k");
             static readonly byte[] c_tau = Encoding.ASCII.GetBytes("expand 16-byte k");
 
-            uint[] m_state;
+            readonly uint[] m_state;
             readonly int m_rounds;
         }
     }

@@ -45,7 +45,7 @@ namespace TACTSharp.Native
             if (build == null)
                 throw new InvalidOperationException("TACTSharpNative is not initialized. Call Initialize first.");
 
-            var splitName = build.BuildConfig.Values["build-name"][0].Replace("WOW-", "").Split("patch");
+            var splitName = build.BuildConfig!.Values["build-name"][0].Replace("WOW-", "").Split("patch");
             var buildString = splitName[1].Split("_")[0] + "." + splitName[0];
 
             var buildStringPtr = Marshal.StringToHGlobalAnsi(buildString);

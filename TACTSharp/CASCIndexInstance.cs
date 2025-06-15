@@ -5,11 +5,6 @@ namespace TACTSharp
 {
     public sealed class CASCIndexInstance
     {
-        private readonly long indexSize;
-
-        private readonly short archiveIndex = -1;
-
-        private readonly string path;
         private readonly IndexHeader header;
 
         private readonly MemoryMappedFile indexFile;
@@ -23,9 +18,6 @@ namespace TACTSharp
 
         public CASCIndexInstance(string path)
         {
-            this.path = path;
-            this.indexSize = new FileInfo(path).Length;
-
             // create from filestream instead so battle.net doesn't freak out
             this.indexFile = MemoryMappedFile.CreateFromFile(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), null, 0, MemoryMappedFileAccess.Read, HandleInheritability.None, false);
             this.accessor = indexFile.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
@@ -104,6 +96,7 @@ namespace TACTSharp
             }
         }
 
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
         private unsafe struct IndexHeader
         {
             public uint headerHashSize;
@@ -120,5 +113,6 @@ namespace TACTSharp
             public uint entriesSize;
             public uint entriesHash;
         }
+#pragma warning restore CS0649
     }
 }

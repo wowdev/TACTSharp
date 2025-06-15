@@ -14,11 +14,16 @@
 
         public static bool TryGetKey(ulong keyName, out byte[] key)
         {
+#pragma warning disable CS8601 // Possible null reference assignment.
             return keys.TryGetValue(keyName, out key);
+#pragma warning restore CS8601
         }
 
         public static void SetKey(ulong keyName, byte[] key)
         {
+            if(key == null || key.Length == 0)
+                throw new ArgumentException("Key cannot be null or empty", nameof(key));
+
             keys[keyName] = key;
         }
 

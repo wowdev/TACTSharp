@@ -23,7 +23,7 @@ namespace TACTSharp.Tests
             var filename = "WowB.exe";
             var expectedMD5 = "923754949b474d581fd9fdd2c1c32912";
 
-            var fileEntries = build.Install.Entries.Where(x => x.name.Equals(filename, StringComparison.InvariantCultureIgnoreCase)).ToList();
+            var fileEntries = build.Install!.Entries.Where(x => x.name.Equals(filename, StringComparison.InvariantCultureIgnoreCase)).ToList();
             if (fileEntries.Count == 0)
                 Assert.Fail("Failed to find " + filename + " in install");
 
@@ -50,7 +50,7 @@ namespace TACTSharp.Tests
             // Check if CKey is the one we expect it to be
             Assert.AreEqual(expectedMD5, Convert.ToHexStringLower(targetCKey));
 
-            var fileEncodingKeys = build.Encoding.FindContentKey(targetCKey);
+            var fileEncodingKeys = build.Encoding!.FindContentKey(targetCKey);
             if (!fileEncodingKeys)
                 Assert.Fail("EKey not found in encoding");
 

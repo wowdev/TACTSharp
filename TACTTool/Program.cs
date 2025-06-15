@@ -21,8 +21,8 @@ namespace TACTTool
         private static string? Input;
         private static string? Output;
         private static readonly ConcurrentBag<(byte[] eKey, ulong decodedSize, string fileName)> extractionTargets = [];
-        private static BuildInstance build;
-        private static Listfile listfile = new();
+        private static BuildInstance? build;
+        private static readonly Listfile listfile = new();
 
         static async Task Main(string[] args)
         {
@@ -101,7 +101,7 @@ namespace TACTTool
             buildTimer.Start();
             build.Load();
             buildTimer.Stop();
-            Console.WriteLine("Build " + build.BuildConfig.Values["build-name"][0] + " loaded in " + Math.Ceiling(buildTimer.Elapsed.TotalMilliseconds) + "ms");
+            Console.WriteLine("Build " + build.BuildConfig!.Values["build-name"][0] + " loaded in " + Math.Ceiling(buildTimer.Elapsed.TotalMilliseconds) + "ms");
 
             if (build.Encoding == null || build.Root == null || build.Install == null || build.GroupIndex == null)
                 throw new Exception("Failed to load build");
@@ -149,8 +149,8 @@ namespace TACTTool
 
                     if (Mode == InputMode.List)
                     {
-                        Directory.CreateDirectory(Path.Combine(Output, Path.GetDirectoryName(fileName)!));
-                        File.WriteAllBytes(Path.Combine(Output, fileName), fileBytes);
+                        Directory.CreateDirectory(Path.Combine(Output!, Path.GetDirectoryName(fileName)!));
+                        File.WriteAllBytes(Path.Combine(Output!, fileName), fileBytes);
                     }
                     else
                     {
@@ -185,19 +185,19 @@ namespace TACTTool
                 switch (option.Name)
                 {
                     case "buildconfig":
-                        build.Settings.BuildConfig = (string)optionValue;
+                        build!.Settings.BuildConfig = (string)optionValue;
                         break;
                     case "cdnconfig":
-                        build.Settings.CDNConfig = (string)optionValue;
+                        build!.Settings.CDNConfig = (string)optionValue;
                         break;
                     case "region":
-                        build.Settings.Region = (string)optionValue;
+                        build!.Settings.Region = (string)optionValue;
                         break;
                     case "product":
-                        build.Settings.Product = (string)optionValue;
+                        build!.Settings.Product = (string)optionValue;
                         break;
                     case "locale":
-                        build.Settings.Locale = ((string)optionValue).ToLower() switch
+                        build!.Settings.Locale = ((string)optionValue).ToLower() switch
                         {
                             "dede" => RootInstance.LocaleFlags.deDE,
                             "enus" => RootInstance.LocaleFlags.enUS,
@@ -217,7 +217,7 @@ namespace TACTTool
                         };
                         break;
                     case "basedir":
-                        build.Settings.BaseDir = (string)optionValue;
+                        build!.Settings.BaseDir = (string)optionValue;
                         break;
                     case "inputvalue":
                         Input = (string)optionValue;
@@ -242,10 +242,10 @@ namespace TACTTool
                         };
                         break;
                     case "cdndir":
-                        build.Settings.CDNDir = (string)optionValue;
+                        build!.Settings.CDNDir = (string)optionValue;
                         break;
                     case "cdns":
-                        build.Settings.AdditionalCDNs.AddRange(((string)optionValue).Split(","));
+                        build!.Settings.AdditionalCDNs.AddRange(((string)optionValue).Split(","));
                         break;
                     case "version":
                     case "help":
@@ -265,7 +265,7 @@ namespace TACTTool
             if (Mode == InputMode.List)
                 Output ??= "extract";
 
-            if (build.Settings.BaseDir != null)
+            if (build!.Settings.BaseDir != null)
             {
                 // Load from build.info
                 var buildInfoPath = Path.Combine(build.Settings.BaseDir, ".build.info");
@@ -281,7 +281,9 @@ namespace TACTTool
 
                 build.Settings.BuildConfig ??= buildInfoEntry.BuildConfig;
                 build.Settings.CDNConfig ??= buildInfoEntry.CDNConfig;
-                build.cdn.ProductDirectory ??= buildInfoEntry.CDNPath;
+
+                if(string.IsNullOrEmpty(build.cdn.ProductDirectory))
+                    build.cdn.ProductDirectory = buildInfoEntry.CDNPath;
             }
             else
             {
@@ -355,7 +357,7 @@ namespace TACTTool
             }
 
             var cKeyBytes = Convert.FromHexString(cKey);
-            var fileEncodingKeys = build.Encoding.FindContentKey(cKeyBytes);
+            var fileEncodingKeys = build.Encoding!.FindContentKey(cKeyBytes);
             if (!fileEncodingKeys)
             {
                 Console.WriteLine("Skipping " + cKey + ", CKey not found in encoding.");
@@ -373,14 +375,14 @@ namespace TACTTool
                 return;
             }
 
-            var fileEntries = build.Root.GetEntriesByFDID(fileDataID);
+            var fileEntries = build.Root!.GetEntriesByFDID(fileDataID);
             if (fileEntries.Count == 0)
             {
                 Console.WriteLine("Skipping FDID " + fdid + ", not found in root.");
                 return;
             }
 
-            var fileEncodingKeys = build.Encoding.FindContentKey(fileEntries[0].md5.AsSpan());
+            var fileEncodingKeys = build.Encoding!.FindContentKey(fileEntries[0].md5.AsSpan());
             if (!fileEncodingKeys)
             {
                 Console.WriteLine("Skipping FDID " + fdid + ", CKey not found in encoding.");
@@ -392,12 +394,12 @@ namespace TACTTool
 
         private static void HandleFileName(BuildInstance build, string filename, string? outputFilename)
         {
-            var fileEntries = build.Install.Entries.Where(x => x.name.Equals(filename.Replace('/', '\\'), StringComparison.InvariantCultureIgnoreCase)).ToList();
+            var fileEntries = build.Install!.Entries.Where(x => x.name.Equals(filename.Replace('/', '\\'), StringComparison.InvariantCultureIgnoreCase)).ToList();
             if (fileEntries.Count == 0)
             {
                 using (var hasher = new Jenkins96())
                 {
-                    var entriesByLookup = build.Root.GetEntriesByLookup(hasher.ComputeHash(filename, true));
+                    var entriesByLookup = build.Root!.GetEntriesByLookup(hasher.ComputeHash(filename, true));
                     if (entriesByLookup.Count != 0)
                     {
                         HandleCKey(build, Convert.ToHexStringLower(entriesByLookup[0].md5.AsSpan()), filename);
@@ -448,7 +450,7 @@ namespace TACTTool
                 targetCKey = fileEntries[0].md5;
             }
 
-            var fileEncodingKeys = build.Encoding.FindContentKey(targetCKey);
+            var fileEncodingKeys = build.Encoding!.FindContentKey(targetCKey);
             if (!fileEncodingKeys)
                 throw new Exception("EKey not found in encoding");
 

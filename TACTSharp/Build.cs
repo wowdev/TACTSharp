@@ -2,8 +2,8 @@
 {
     public class BuildInstance
     {
-        public Config BuildConfig { get; private set; }
-        public Config CDNConfig { get; private set; }
+        public Config? BuildConfig { get; private set; }
+        public Config? CDNConfig { get; private set; }
 
         public EncodingInstance? Encoding { get; private set; }
         public RootInstance? Root { get; private set; }
@@ -185,8 +185,6 @@
                 throw new Exception("Indexes not loaded");
 
             var (offset, size, archiveIndex) = GroupIndex.GetIndexInfo(eKey);
-            byte[] fileBytes;
-
             if (offset == -1)
             {
                 if (FileIndex != null)
@@ -201,7 +199,7 @@
             }
             else
             {
-                return cdn.GetFileFromArchive(Convert.ToHexStringLower(eKey), CDNConfig.Values["archives"][archiveIndex], offset, size, decodedSize, true);
+                return cdn.GetFileFromArchive(Convert.ToHexStringLower(eKey), CDNConfig!.Values["archives"][archiveIndex], offset, size, decodedSize, true);
             }
         }
     }

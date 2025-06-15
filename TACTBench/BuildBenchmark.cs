@@ -31,7 +31,7 @@ namespace TACTBench
                 break;
             }
 
-            _build.LoadConfigs(_build.Settings.BuildConfig, _build.Settings.CDNConfig);
+            _build.LoadConfigs(_build.Settings.BuildConfig!, _build.Settings.CDNConfig!);
             _build.Load();
         }
 

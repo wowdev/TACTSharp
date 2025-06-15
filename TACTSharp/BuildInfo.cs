@@ -19,6 +19,9 @@
 
         public BuildInfo(string path, Settings Settings, CDN CDN)
         {
+            if(string.IsNullOrEmpty(Settings.BaseDir) || !Directory.Exists(Settings.BaseDir))
+                throw new DirectoryNotFoundException("Base directory for .build.info/.flavor.info not set or does not exist");
+
             var headerMap = new Dictionary<string, byte>();
 
             var folderMap = new Dictionary<string, string>();
@@ -28,7 +31,7 @@
                 if (flavorLines.Length < 2)
                     continue;
 
-                folderMap.Add(flavorLines[1], Path.GetFileName(Path.GetDirectoryName(flavorFile)));
+                folderMap.Add(flavorLines[1], Path.GetFileName(Path.GetDirectoryName(flavorFile)!));
             }
 
             foreach (var line in File.ReadAllLines(path))
@@ -58,7 +61,7 @@
                 if (headerMap.TryGetValue("CDN Hosts", out byte cdnHosts))
                     CDN.SetCDNs(splitLine[cdnHosts].Split(' '));
 
-                if (folderMap.TryGetValue(availableBuild.Product, out string folder))
+                if (folderMap.TryGetValue(availableBuild.Product, out string? folder))
                     availableBuild.Folder = folder;
                 else
                     Console.WriteLine("No flavor found matching " + availableBuild.Product);
