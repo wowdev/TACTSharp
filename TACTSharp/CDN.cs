@@ -271,7 +271,7 @@ namespace TACTSharp
 
         public unsafe bool TryGetLocalFile(string eKey, out ReadOnlySpan<byte> data)
         {
-            if(string.IsNullOrEmpty(Settings.BaseDir))
+            if (string.IsNullOrEmpty(Settings.BaseDir))
                 throw new DirectoryNotFoundException("Base directory not set");
 
             var eKeyBytes = Convert.FromHexString(eKey);
@@ -387,7 +387,7 @@ namespace TACTSharp
             {
                 var url = $"http://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
 
-                Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size);
+                Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size + " from " + CDNServers[i]);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url)
                 {
@@ -397,31 +397,39 @@ namespace TACTSharp
                     }
                 };
 
-                var response = Client.Send(request, token);
-
-                if (!response.IsSuccessStatusCode)
+                try
                 {
-                    Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
-                    continue;
-                }
+                    var response = Client.Send(request, token);
 
-                lock (FileLocks[cachePath])
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-
-                    try
+                    if (!response.IsSuccessStatusCode)
                     {
-                        using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
-                        {
-                            response.Content.ReadAsStream(token).CopyTo(fileStream);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("Failed to download file: " + e.Message);
-                        File.Delete(cachePath);
+                        Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
                         continue;
                     }
+
+                    lock (FileLocks[cachePath])
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+
+                        try
+                        {
+                            using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
+                            {
+                                response.Content.ReadAsStream(token).CopyTo(fileStream);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Failed to download file: " + ex.Message);
+                            File.Delete(cachePath);
+                            continue;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Encountered exception " + e.Message + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
+                    continue;
                 }
 
                 return File.ReadAllBytes(cachePath);
