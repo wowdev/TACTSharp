@@ -64,7 +64,8 @@ namespace TACTSharp
         {
             var timer = new Stopwatch();
             timer.Start();
-            var cdnsFile = Client.GetStringAsync($"http://{Settings.Region}.patch.battle.net:1119/{Settings.Product}/cdns").Result;
+
+            var cdnsFile = GetPatchServiceFile(Settings.Product, "cdns").Result;
 
             foreach (var line in cdnsFile.Split('\n'))
             {
@@ -157,7 +158,7 @@ namespace TACTSharp
 
         public async Task<string> GetPatchServiceFile(string product, string file = "versions")
         {
-            return await Client.GetStringAsync($"https://{Settings.Region}.version.battle.net/{product}/{file}");
+            return await Client.GetStringAsync($"https://{Settings.Region}.version.battle.net/v2/products/{product}/{file}");
         }
 
         private byte[] DownloadFile(string type, string hash, ulong size = 0, CancellationToken token = new())
