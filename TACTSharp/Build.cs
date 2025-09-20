@@ -1,9 +1,13 @@
-﻿namespace TACTSharp
+﻿using System.Text.Json;
+using System.Text.Json.Nodes;
+
+namespace TACTSharp
 {
     public class BuildInstance
     {
         public Config? BuildConfig { get; private set; }
         public Config? CDNConfig { get; private set; }
+        public string? ProductConfig { get; private set; }
 
         public EncodingInstance? Encoding { get; private set; }
         public RootInstance? Root { get; private set; }
@@ -20,6 +24,8 @@
             cdn = new(Settings);
         }
 
+        public void ResetCDN() => cdn = new(Settings);
+
         public void LoadConfigs(string buildConfig, string cdnConfig)
         {
             Settings.BuildConfig = buildConfig;
@@ -32,16 +38,56 @@
                 BuildConfig = new Config(cdn, buildConfig, true);
             else if (buildConfig.Length == 32 && buildConfig.All(c => "0123456789abcdef".Contains(c)))
                 BuildConfig = new Config(cdn, buildConfig, false);
+            else
+                throw new Exception("Invalid build config, must be a file path or a 32 character hex string");
 
             if (File.Exists(cdnConfig))
                 CDNConfig = new Config(cdn, cdnConfig, true);
             else if (cdnConfig.Length == 32 && cdnConfig.All(c => "0123456789abcdef".Contains(c)))
                 CDNConfig = new Config(cdn, cdnConfig, false);
+            else
+                throw new Exception("Invalid CDN config, must be a file path or a 32 character hex string");
 
             if (BuildConfig == null || CDNConfig == null)
                 throw new Exception("Failed to load configs");
             timer.Stop();
             Console.WriteLine("Configs loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+        }
+
+        public void LoadConfigs(string buildConfig, string cdnConfig, string productConfig)
+        {
+            Settings.ProductConfig = productConfig;
+
+            var timer = new System.Diagnostics.Stopwatch();
+            timer.Start();
+
+            ProductConfig = cdn.GetProductConfig(productConfig);
+
+            if (ProductConfig == null)
+                throw new Exception("Failed to load product config");
+
+            try
+            {
+                var parsedJSON = JsonSerializer.Deserialize<JsonNode>(ProductConfig);
+                if (parsedJSON == null || parsedJSON["all"] == null || parsedJSON["all"]!["config"] == null)
+                    throw new Exception("Product config has missing keys");
+
+                if (parsedJSON["all"]!["config"]!["decryption_key_name"] != null && !string.IsNullOrEmpty(parsedJSON["all"]!["config"]!["decryption_key_name"]!.GetValue<string>()))
+                {
+                    cdn.ArmadilloKeyName = parsedJSON["all"]!["config"]!["decryption_key_name"]!.GetValue<string>();
+                    Console.WriteLine("Set Armadillo key name to " + cdn.ArmadilloKeyName);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to parse product config: " + ex.Message);
+            }
+
+            timer.Stop();
+
+            Console.WriteLine("Product config loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+
+            LoadConfigs(buildConfig, cdnConfig);
         }
 
         public void Load()

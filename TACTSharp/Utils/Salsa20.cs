@@ -7,7 +7,7 @@ namespace TACTSharp
     /// <summary>
     /// Implements the Salsa20 stream encryption cipher, as defined at http://cr.yp.to/snuffle.html.
     /// </summary>
-    /// <remarks>See <a href="http://code.logos.com/blog/2008/06/salsa20_implementation_in_c_1.html">Salsa20 Implementation in C#</a>.</remarks>
+    /// <remarks>See <a href="https://faithlife.codes/blog/2008/06/salsa20_implementation_in_c_1/">Salsa20 Implementation in C#</a>.</remarks>
     public sealed class Salsa20
     {
         /// <summary>
@@ -16,11 +16,16 @@ namespace TACTSharp
         /// </summary>
         /// <param name="rgbKey">The secret key to use for the symmetric algorithm.</param>
         /// <param name="rgbIV">The initialization vector to use for the symmetric algorithm.</param>
+        /// <param name="offset">The offset to start decryption.</param>
         /// <returns>A symmetric decryptor object.</returns>
-        public Salsa20CryptoTransform CreateDecryptor(ReadOnlySpan<byte> rgbKey, ReadOnlySpan<byte> rgbIV)
+        public Salsa20CryptoTransform CreateDecryptor(ReadOnlySpan<byte> rgbKey, ReadOnlySpan<byte> rgbIV, int offset = 0)
         {
             // decryption and encryption are symmetrical
-            return CreateEncryptor(rgbKey, rgbIV);
+            var decryptor = CreateEncryptor(rgbKey, rgbIV);
+            if (offset != 0)
+                (decryptor as Salsa20CryptoTransform).SetOffset(offset);
+
+            return decryptor;
         }
 
         /// <summary>
@@ -134,21 +139,29 @@ namespace TACTSharp
                 while (inputCount > 0)
                 {
                     Hash(output, m_state);
-                    m_state[8] = AddOne(m_state[8]);
-                    if (m_state[8] == 0)
-                    {
-                        // NOTE: stopping at 2^70 bytes per nonce is user's responsibility
-                        m_state[9] = AddOne(m_state[9]);
-                    }
 
-                    int blockSize = Math.Min(64, inputCount);
+                    int blockSize = Math.Min(64 - m_decryptOffset, inputCount);
                     for (int i = 0; i < blockSize; i++)
-                        outputBuffer[outputOffset + i] = (byte)(inputBuffer[inputOffset + i] ^ output[i]);
+                        outputBuffer[outputOffset + i] = (byte)(inputBuffer[inputOffset + i] ^ output[i + m_decryptOffset]);
                     bytesTransformed += blockSize;
 
-                    inputCount -= 64;
-                    outputOffset += 64;
-                    inputOffset += 64;
+                    inputCount -= blockSize;
+                    outputOffset += blockSize;
+                    inputOffset += blockSize;
+
+                    m_decryptOffset = (m_decryptOffset + blockSize) % 64;
+
+                    // if m_decryptStart is 0, it means we reached the border of the block
+                    // and the next decrypt part will begin from the next block
+                    if (m_decryptOffset == 0)
+                    {
+                        m_state[8] = AddOne(m_state[8]);
+                        if (m_state[8] == 0)
+                        {
+                            // NOTE: stopping at 2^70 bytes per nonce is user's responsibility
+                            m_state[9] = AddOne(m_state[9]);
+                        }
+                    }
                 }
 
                 return bytesTransformed;
@@ -161,6 +174,12 @@ namespace TACTSharp
                 byte[] output = new byte[inputCount];
                 TransformBlock(inputBuffer, inputOffset, inputCount, output, 0);
                 return output;
+            }
+
+            public void SetOffset(int offset)
+            {
+                m_state[8] = (uint)(offset / 64);
+                m_decryptOffset = offset % 64;
             }
 
             private static uint Rotate(uint v, int c)
@@ -243,6 +262,7 @@ namespace TACTSharp
 
             readonly uint[] m_state;
             readonly int m_rounds;
+            int m_decryptOffset;
         }
     }
 }

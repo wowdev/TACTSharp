@@ -18,6 +18,8 @@ namespace TACTSharp
         // However, if ProductDirectory is accessed before the first CDN is loaded (or if not set through .build.info loading) it'll be null.
         public string ProductDirectory = string.Empty;
 
+        public string ArmadilloKeyName = string.Empty;
+
         // TODO: Memory mapped cache file access?
         public CDN(Settings settings)
         {
@@ -213,6 +215,8 @@ namespace TACTSharp
 
             if (!string.IsNullOrEmpty(Settings.CDNDir))
             {
+                // TODO: How do we handle encrypted local CDN copies?
+
                 var cdnPath = Path.Combine(Settings.CDNDir, ProductDirectory, type, $"{hash[0]}{hash[1]}", $"{hash[2]}{hash[3]}", hash);
                 FileLocks.TryAdd(cdnPath, new Lock());
 
@@ -253,7 +257,25 @@ namespace TACTSharp
                     {
                         using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
                         {
-                            response.Content.ReadAsStream(token).CopyTo(fileStream);
+                            if (string.IsNullOrEmpty(ArmadilloKeyName))
+                            {
+                                response.Content.ReadAsStream(token).CopyTo(fileStream);
+                            }
+                            else
+                            {
+                                using (var ms = new MemoryStream())
+                                {
+                                    response.Content.ReadAsStream(token).CopyTo(ms);
+                                    ms.Position = 0;
+                                    if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, ms.ToArray(), out var output))
+                                    {
+                                        Console.WriteLine("Failed to decrypt file " + hash + " downloaded from " + CDNServers[i]);
+                                        File.Delete(cachePath);
+                                        continue;
+                                    }
+                                    fileStream.Write(output);
+                                }
+                            }
                         }
                     }
                     catch (Exception e)
@@ -351,6 +373,8 @@ namespace TACTSharp
 
             if (!string.IsNullOrEmpty(Settings.CDNDir))
             {
+                // TODO: How do we handle encrypted local CDN copies?
+
                 var cdnPath = Path.Combine(Settings.CDNDir, ProductDirectory, "data", $"{archive[0]}{archive[1]}", $"{archive[2]}{archive[3]}", archive);
                 FileLocks.TryAdd(cdnPath, new Lock());
                 if (File.Exists(cdnPath))
@@ -416,7 +440,25 @@ namespace TACTSharp
                         {
                             using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
                             {
-                                response.Content.ReadAsStream(token).CopyTo(fileStream);
+                                if (string.IsNullOrEmpty(ArmadilloKeyName))
+                                {
+                                    response.Content.ReadAsStream(token).CopyTo(fileStream);
+                                }
+                                else
+                                {
+                                    using (var ms = new MemoryStream())
+                                    {
+                                        response.Content.ReadAsStream(token).CopyTo(ms);
+                                        ms.Position = 0;
+                                        if (!BLTE.TryDecryptArmadillo(archive, ArmadilloKeyName, ms.ToArray(), out var output, offset))
+                                        {
+                                            Console.WriteLine("Failed to decrypt file " + eKey + " from archive " + archive + " downloaded from " + CDNServers[i]);
+                                            File.Delete(cachePath);
+                                            continue;
+                                        }
+                                        fileStream.Write(output);
+                                    }
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -488,6 +530,61 @@ namespace TACTSharp
                 File.WriteAllBytes(cachePath, decodedData);
 
             return cachePath;
+        }
+
+        public string GetProductConfig(string hash, CancellationToken token = new())
+        {
+            lock (cdnLock)
+            {
+                if (CDNServers.Count == 0)
+                {
+                    LoadCDNs();
+                }
+            }
+
+            var cachePath = Path.Combine(Settings.CacheDir, "tpr/configs/data", hash);
+            FileLocks.TryAdd(cachePath, new Lock());
+
+            if (File.Exists(cachePath))
+                return File.ReadAllText(cachePath);
+
+            for (var i = 0; i < CDNServers.Count; i++)
+            {
+                var url = $"http://{CDNServers[i]}/tpr/configs/data/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
+
+                Console.WriteLine("Downloading " + url);
+
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+                var response = Client.Send(request, token);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
+                    continue;
+                }
+
+                lock (FileLocks[cachePath])
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+
+                    try
+                    {
+                        using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
+                            response.Content.ReadAsStream(token).CopyTo(fileStream);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Failed to download file: " + e.Message);
+                        File.Delete(cachePath);
+                        continue;
+                    }
+                }
+
+                return File.ReadAllText(cachePath);
+            }
+
+            throw new FileNotFoundException("Exhausted all CDNs trying to download " + hash);
         }
     }
 }

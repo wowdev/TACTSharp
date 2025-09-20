@@ -6,6 +6,8 @@ namespace TACTSharp
 {
     public static class BLTE
     {
+        private static Dictionary<string, byte[]> ArmadilloKeys = new();
+
         public static byte[] Decode(ReadOnlySpan<byte> data, ulong totalDecompSize = 0, bool verify = false)
         {
             var fixedHeaderSize = 8;
@@ -151,6 +153,33 @@ namespace TACTSharp
             {
                 throw new Exception("encType arc4 not implemented");
             }
+        }
+
+        public static bool TryDecryptArmadillo(string name, string keyName, ReadOnlySpan<byte> data, out Span<byte> output, int offset = 0)
+        {
+            if (!KeyService.TryGetArmadilloKey(keyName, out var key))
+            {
+                if (!File.Exists(keyName + ".ak"))
+                {
+                    key = new byte[16];
+                    throw new Exception("Armadillo key " + keyName + " not set and not found on disk (" + keyName + ".ak)");
+                }
+                else
+                {
+                    using (BinaryReader reader = new(new FileStream(keyName + ".ak", FileMode.Open)))
+                        key = reader.ReadBytes(16);
+
+                    KeyService.SetArmadilloKey(keyName, key);
+                }
+            }
+
+            byte[] IV = Convert.FromHexString(Path.GetFileNameWithoutExtension(name));
+            Array.Copy(IV, 8, IV, 0, 8);
+            Array.Resize(ref IV, 8);
+
+            output = KeyService.SalsaInstance.CreateDecryptor(key, IV, offset).TransformFinalBlock(data[0..], 0, data.Length);
+            return true;
+
         }
     }
 }

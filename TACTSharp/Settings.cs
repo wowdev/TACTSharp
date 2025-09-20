@@ -9,6 +9,7 @@
         public string? BaseDir;
         public string? BuildConfig;
         public string? CDNConfig;
+        public string? ProductConfig;
         public string CacheDir = "cache";
         public string CDNDir = "";
         public bool ListfileFallback = true;
