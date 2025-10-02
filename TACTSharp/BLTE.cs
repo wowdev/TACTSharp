@@ -121,8 +121,8 @@ namespace TACTSharp
 
             byte IVSize = data[keyNameSize + 1];
 
-            if (IVSize != 4 || IVSize > 0x10)
-                throw new Exception("IVSize != 4 || IVSize > 0x10");
+            if ((IVSize != 4 && IVSize != 8) || IVSize > 0x10)
+                throw new Exception("(IVSize != 4 && IVSize != 8) || IVSize > 0x10");
 
             byte[] IV = data.Slice(keyNameSize + 2, IVSize).ToArray();
             // expand to 8 bytes
