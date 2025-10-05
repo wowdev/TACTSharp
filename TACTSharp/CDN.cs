@@ -309,37 +309,45 @@ namespace TACTSharp
                 var archivePath = Path.Combine(Settings.BaseDir, "Data", "data", "data." + archiveIndex.ToString().PadLeft(3, '0'));
                 var archiveLength = new FileInfo(archivePath).Length;
 
-                using (var archive = MemoryMappedFile.CreateFromFile(archivePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
-                using (var accessor = archive.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
-                using (var mmapViewHandle = accessor.SafeMemoryMappedViewHandle)
+                try
                 {
-                    byte* ptr = null;
-                    try
+                    using (var archive = MemoryMappedFile.CreateFromFile(archivePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
+                    using (var accessor = archive.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
+                    using (var mmapViewHandle = accessor.SafeMemoryMappedViewHandle)
                     {
-                        mmapViewHandle.AcquirePointer(ref ptr);
-
-                        if (archiveOffset + archiveSize > archiveLength)
+                        byte* ptr = null;
+                        try
                         {
-                            Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
+                            mmapViewHandle.AcquirePointer(ref ptr);
+
+                            if (archiveOffset + archiveSize > archiveLength)
+                            {
+                                Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
+                                data = null;
+                                return false;
+                            }
+
+                            data = new ReadOnlySpan<byte>(ptr + archiveOffset, archiveSize).ToArray();
+                            return true;
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("Failed to read local file: " + e.Message);
                             data = null;
                             return false;
                         }
-
-                        data = new ReadOnlySpan<byte>(ptr + archiveOffset, archiveSize).ToArray();
-                        return true;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("Failed to read local file: " + e.Message);
-                        data = null;
-                        return false;
-                    }
-                    finally
-                    {
-                        mmapViewHandle.ReleasePointer();
+                        finally
+                        {
+                            mmapViewHandle.ReleasePointer();
+                        }
                     }
                 }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Failed to read local file (make sure it is not in use): " + e.Message);
+                }
             }
+
             data = null;
             return false;
         }
