@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Diagnostics;
 using TACTSharp;
 
@@ -29,54 +28,54 @@ namespace TACTTool
             #region CLI switches
             var rootCommand = new RootCommand("TACTTool - Extraction tool using the TACTSharp library");
 
-            var buildConfigOption = new Option<string?>(name: "--buildconfig", description: "Build config to load (hex or file on disk)");
-            buildConfigOption.AddAlias("-b");
-            rootCommand.AddOption(buildConfigOption);
+            var buildConfigOption = new Option<string?>("--buildconfig") { Description = "Build config to load (hex or file on disk)" };
+            buildConfigOption.Aliases.Add("-b");
+            rootCommand.Options.Add(buildConfigOption);
 
-            var cdnConfigOption = new Option<string?>(name: "--cdnconfig", description: "CDN config to load (hex or file on disk)");
-            cdnConfigOption.AddAlias("-c");
-            rootCommand.AddOption(cdnConfigOption);
+            var cdnConfigOption = new Option<string?>("--cdnconfig") { Description = "CDN config to load (hex or file on disk)" };
+            cdnConfigOption.Aliases.Add("-c");
+            rootCommand.Options.Add(cdnConfigOption);
 
-            var productOption = new Option<string?>(name: "--product", () => "wow", description: "TACT product to load");
-            productOption.AddAlias("-p");
-            rootCommand.AddOption(productOption);
+            var productOption = new Option<string?>(name: "--product") { Description = "TACT product to load", DefaultValueFactory = _ => "wow" };
+            productOption.Aliases.Add("-p");
+            rootCommand.Options.Add(productOption);
 
-            var regionOption = new Option<string?>(name: "--region", () => "us", description: "Region to use for patch service/build selection/CDNs");
-            regionOption.AddAlias("-r");
-            rootCommand.AddOption(regionOption);
+            var regionOption = new Option<string?>("--region") { Description = "Region to use for patch service/build selection/CDNs", DefaultValueFactory = _ => "us" };
+            regionOption.Aliases.Add("-r");
+            rootCommand.Options.Add(regionOption);
 
-            var localeOption = new Option<string?>(name: "--locale", () => "enUS", description: "Locale to use for file retrieval");
-            localeOption.AddAlias("-l");
-            rootCommand.AddOption(localeOption);
+            var localeOption = new Option<string?>(name: "--locale") { Description = "Locale to use for file retrieval", DefaultValueFactory = _ => "enUS" };
+            localeOption.Aliases.Add("-l");
+            rootCommand.Options.Add(localeOption);
 
-            var inputModeOption = new Option<string>("--mode", "Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)");
-            inputModeOption.AddAlias("-m");
-            rootCommand.AddOption(inputModeOption);
+            var inputModeOption = new Option<string>("--mode") { Description = "Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)" };
+            inputModeOption.Aliases.Add("-m");
+            rootCommand.Options.Add(inputModeOption);
 
-            var inputValueOption = new Option<string>("--inputvalue", "Input value for extraction");
-            inputValueOption.AddAlias("-i");
-            rootCommand.AddOption(inputValueOption);
+            var inputValueOption = new Option<string>("--inputvalue") { Description = "Input value for extraction" };
+            inputValueOption.Aliases.Add("-i");
+            rootCommand.Options.Add(inputValueOption);
 
-            var outputDirOption = new Option<string>("--output", "Output path for extracted files, folder for list mode (defaults to 'extract' folder), output filename for other input modes (defaults to input value as filename)");
-            outputDirOption.AddAlias("-o");
-            rootCommand.AddOption(outputDirOption);
+            var outputDirOption = new Option<string>("--output") { Description = "Output path for extracted files, folder for list mode (defaults to 'extract' folder), output filename for other input modes (defaults to input value as filename)" };
+            outputDirOption.Aliases.Add("-o");
+            rootCommand.Options.Add(outputDirOption);
 
-            var baseDirOption = new Option<string?>(name: "--basedir", description: "WoW installation folder to use as source for build info and read-only file cache (if available)");
-            baseDirOption.AddAlias("-d");
-            rootCommand.AddOption(baseDirOption);
+            var baseDirOption = new Option<string?>("--basedir") { Description = "WoW installation folder to use as source for build info and read-only file cache (if available)" };
+            baseDirOption.Aliases.Add("-d");
+            rootCommand.Options.Add(baseDirOption);
 
-            var cdnDirOption = new Option<string?>(name: "--cdndir", description: "CDN folder to use as read-only file cache (if available)");
-            cdnDirOption.AddAlias("-cd");
-            rootCommand.AddOption(cdnDirOption);
+            var cdnDirOption = new Option<string?>("--cdndir") { Description = "CDN folder to use as read-only file cache (if available)" };
+            cdnDirOption.Aliases.Add("-cd");
+            rootCommand.Options.Add(cdnDirOption);
 
-            var additionalCDNsOption = new Option<string?>(name: "--cdns", description: "Additional CDN hostnames to use, separated by commas (only specify hostnames)");
-            rootCommand.AddOption(additionalCDNsOption);
+            var additionalCDNsOption = new Option<string?>("--cdns") { Description = "Additional CDN hostnames to use, separated by commas (only specify hostnames)" };
+            rootCommand.Options.Add(additionalCDNsOption);
 
-            rootCommand.SetHandler(CommandLineArgHandler);
+            rootCommand.SetAction(CommandLineArgHandler);
 
             build = new BuildInstance();
 
-            await rootCommand.InvokeAsync(args);
+            await rootCommand.Parse(args).InvokeAsync();
 
             if (build.Settings.BuildConfig == null || build.Settings.CDNConfig == null)
             {
@@ -172,32 +171,32 @@ namespace TACTTool
             Console.WriteLine("Total time: " + totalTimer.Elapsed.TotalMilliseconds + "ms");
         }
 
-        private static async Task CommandLineArgHandler(InvocationContext context)
+        private static async Task CommandLineArgHandler(ParseResult result)
         {
-            var command = context.ParseResult.CommandResult;
+            var command = result.CommandResult;
             var modeOption = command.Command.Options.FirstOrDefault(option => option.Name == "mode");
             foreach (var option in command.Command.Options)
             {
-                var optionValue = command.GetValueForOption(option);
+                var optionValue = result.GetValue<string>(option.Name);
                 if (optionValue == null)
                     continue;
 
                 switch (option.Name)
                 {
-                    case "buildconfig":
-                        build!.Settings.BuildConfig = (string)optionValue;
+                    case "--buildconfig":
+                        build!.Settings.BuildConfig = optionValue;
                         break;
-                    case "cdnconfig":
-                        build!.Settings.CDNConfig = (string)optionValue;
+                    case "--cdnconfig":
+                        build!.Settings.CDNConfig = optionValue;
                         break;
-                    case "region":
-                        build!.Settings.Region = (string)optionValue;
+                    case "--region":
+                        build!.Settings.Region = optionValue;
                         break;
-                    case "product":
-                        build!.Settings.Product = (string)optionValue;
+                    case "--product":
+                        build!.Settings.Product = optionValue;
                         break;
-                    case "locale":
-                        build!.Settings.Locale = ((string)optionValue).ToLower() switch
+                    case "--locale":
+                        build!.Settings.Locale = (optionValue).ToLower() switch
                         {
                             "dede" => RootInstance.LocaleFlags.deDE,
                             "enus" => RootInstance.LocaleFlags.enUS,
@@ -216,17 +215,17 @@ namespace TACTTool
                             _ => throw new Exception("Invalid locale. Available locales: deDE, enUS, enGB, ruRU, zhCN, zhTW, enTW, esES, esMX, frFR, itIT, koKR, ptBR, ptPT"),
                         };
                         break;
-                    case "basedir":
-                        build!.Settings.BaseDir = (string)optionValue;
+                    case "--basedir":
+                        build!.Settings.BaseDir = optionValue;
                         break;
-                    case "inputvalue":
-                        Input = (string)optionValue;
+                    case "--inputvalue":
+                        Input = optionValue;
                         break;
-                    case "output":
-                        Output = (string)optionValue;
+                    case "--output":
+                        Output = optionValue;
                         break;
-                    case "mode":
-                        Mode = ((string)optionValue).ToLower() switch
+                    case "--mode":
+                        Mode = (optionValue).ToLower() switch
                         {
                             "list" => InputMode.List,
                             "ehash" => InputMode.EKey,
@@ -241,14 +240,14 @@ namespace TACTTool
                             _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
                         };
                         break;
-                    case "cdndir":
-                        build!.Settings.CDNDir = (string)optionValue;
+                    case "--cdndir":
+                        build!.Settings.CDNDir = optionValue;
                         break;
-                    case "cdns":
-                        build!.Settings.AdditionalCDNs.AddRange(((string)optionValue).Split(","));
+                    case "--cdns":
+                        build!.Settings.AdditionalCDNs.AddRange((optionValue).Split(","));
                         break;
-                    case "version":
-                    case "help":
+                    case "--version":
+                    case "--help":
                         break;
                     default:
                         Console.WriteLine("Unhandled command line option " + option.Name);
@@ -282,7 +281,7 @@ namespace TACTTool
                 build.Settings.BuildConfig ??= buildInfoEntry.BuildConfig;
                 build.Settings.CDNConfig ??= buildInfoEntry.CDNConfig;
 
-                if(string.IsNullOrEmpty(build.cdn.ProductDirectory))
+                if (string.IsNullOrEmpty(build.cdn.ProductDirectory))
                     build.cdn.ProductDirectory = buildInfoEntry.CDNPath;
             }
             else
