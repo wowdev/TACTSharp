@@ -15,7 +15,7 @@
 
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
-    <Version>0.0.14-alpha</Version>
+    <Version>0.0.15-alpha</Version>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
