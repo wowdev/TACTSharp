@@ -98,6 +98,8 @@ namespace TACTSharp
                     {
                         var ping = new System.Net.NetworkInformation.Ping().Send(server, 400).RoundtripTime;
                         Console.WriteLine("Ping to " + server + ": " + ping + "ms");
+                        if(server == "blzddist1-a.akamaihd.net")
+                            ping += 5000; // TEMP: Penalize Akamai for having missing files as of November 2025
                         return (server, ping);
                     }
                     catch (Exception e)
