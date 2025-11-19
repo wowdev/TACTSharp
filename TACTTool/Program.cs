@@ -298,6 +298,23 @@ namespace TACTTool
                     build.Settings.BuildConfig ??= splitLine[1];
                     build.Settings.CDNConfig ??= splitLine[2];
                 }
+
+                // If we have a build config but no cdn config, take the first available cdn config with that build config
+                if (!string.IsNullOrEmpty(build.Settings.BuildConfig) && build.Settings.CDNConfig == null)
+                {
+                    foreach (var line in versions.Split('\n'))
+                    {
+                        if (line.StartsWith('#'))
+                            continue;
+
+                        var splitLine = line.Split('|');
+                        if (splitLine[1] == build.Settings.BuildConfig)
+                        {
+                            build.Settings.CDNConfig = splitLine[2];
+                            break;
+                        }
+                    }
+                }
             }
         }
 
