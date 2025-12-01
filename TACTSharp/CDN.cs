@@ -237,19 +237,11 @@ namespace TACTSharp
 
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"http://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
+                var url = $"https://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
                 Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
-
-                var response = Client.Send(request, token);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
-                    continue;
-                }
 
                 lock (FileLocks[cachePath])
                 {
@@ -257,6 +249,14 @@ namespace TACTSharp
 
                     try
                     {
+                        var response = Client.Send(request, token);
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
+                            continue;
+                        }
+
                         using (var fileStream = new FileStream(cachePath, FileMode.Create, FileAccess.Write))
                         {
                             if (string.IsNullOrEmpty(ArmadilloKeyName))
@@ -420,7 +420,7 @@ namespace TACTSharp
 
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"http://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
+                var url = $"https://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
 
                 Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size + " from " + CDNServers[i]);
 
@@ -560,7 +560,7 @@ namespace TACTSharp
 
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"http://{CDNServers[i]}/tpr/configs/data/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
+                var url = $"https://{CDNServers[i]}/tpr/configs/data/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
                 Console.WriteLine("Downloading " + url);
 
