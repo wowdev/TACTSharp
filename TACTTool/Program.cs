@@ -16,6 +16,13 @@ namespace TACTTool
             FileName
         };
 
+        private enum RunMode
+        {
+            Extract,
+            Verify
+        };
+
+        private static RunMode RunModeSetting = RunMode.Extract;
         private static InputMode? Mode;
         private static string? Input;
         private static string? Output;
@@ -48,7 +55,7 @@ namespace TACTTool
             localeOption.Aliases.Add("-l");
             rootCommand.Options.Add(localeOption);
 
-            var inputModeOption = new Option<string>("--mode") { Description = "Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename)" };
+            var inputModeOption = new Option<string>("--mode") { Description = "Input mode: list, ekey (or ehash), ckey (or chash), id (or fdid), name (or filename), verify (non-extraction, verify CDN dir contents)" };
             inputModeOption.Aliases.Add("-m");
             rootCommand.Options.Add(inputModeOption);
 
@@ -76,6 +83,12 @@ namespace TACTTool
             build = new BuildInstance();
 
             await rootCommand.Parse(args).InvokeAsync();
+
+            if(RunModeSetting == RunMode.Verify)
+            {
+                RunModes.Verify.Run(build);
+                return;
+            }
 
             if (build.Settings.BuildConfig == null || build.Settings.CDNConfig == null)
             {
@@ -225,20 +238,26 @@ namespace TACTTool
                         Output = optionValue;
                         break;
                     case "--mode":
-                        Mode = (optionValue).ToLower() switch
+                        RunModeSetting = optionValue.Equals("verify", StringComparison.CurrentCultureIgnoreCase) ? RunMode.Verify : RunMode.Extract;
+
+                        if(RunModeSetting == RunMode.Extract)
                         {
-                            "list" => InputMode.List,
-                            "ehash" => InputMode.EKey,
-                            "ekey" => InputMode.EKey,
-                            "chash" => InputMode.CKey,
-                            "ckey" => InputMode.CKey,
-                            "id" => InputMode.FDID,
-                            "fdid" => InputMode.FDID,
-                            "install" => InputMode.FileName,
-                            "filename" => InputMode.FileName,
-                            "name" => InputMode.FileName,
-                            _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
-                        };
+                            Mode = (optionValue).ToLower() switch
+                            {
+                                "list" => InputMode.List,
+                                "ehash" => InputMode.EKey,
+                                "ekey" => InputMode.EKey,
+                                "chash" => InputMode.CKey,
+                                "ckey" => InputMode.CKey,
+                                "id" => InputMode.FDID,
+                                "fdid" => InputMode.FDID,
+                                "install" => InputMode.FileName,
+                                "filename" => InputMode.FileName,
+                                "name" => InputMode.FileName,
+                                _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
+                            };
+                        }
+                        
                         break;
                     case "--cdndir":
                         build!.Settings.CDNDir = optionValue;
@@ -253,6 +272,14 @@ namespace TACTTool
                         Console.WriteLine("Unhandled command line option " + option.Name);
                         break;
                 }
+            }
+
+            if(RunModeSetting == RunMode.Verify)
+            {
+                if(string.IsNullOrEmpty(build!.Settings.CDNDir))
+                    throw new Exception("CDN directory must be specified for verify mode.");
+
+                return;
             }
 
             if (Mode == null)
