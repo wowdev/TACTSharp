@@ -34,6 +34,9 @@ namespace TACTSharp
             var timer = new System.Diagnostics.Stopwatch();
             timer.Start();
 
+            if (!cdn.HasLocal && !string.IsNullOrEmpty(Settings.BaseDir))
+                cdn.OpenLocal();
+
             if (File.Exists(buildConfig))
                 BuildConfig = new Config(cdn, buildConfig, true);
             else if (buildConfig.Length == 32 && buildConfig.All(c => "0123456789abcdef".Contains(c)))
@@ -60,6 +63,9 @@ namespace TACTSharp
 
             var timer = new System.Diagnostics.Stopwatch();
             timer.Start();
+
+            if (!cdn.HasLocal && !string.IsNullOrEmpty(Settings.BaseDir))
+                cdn.OpenLocal();
 
             ProductConfig = cdn.GetProductConfig(productConfig);
 
@@ -97,7 +103,7 @@ namespace TACTSharp
 
             var timer = new System.Diagnostics.Stopwatch();
 
-            if (!string.IsNullOrEmpty(Settings.BaseDir))
+            if (!cdn.HasLocal && !string.IsNullOrEmpty(Settings.BaseDir))
                 cdn.OpenLocal();
 
             timer.Start();

@@ -10,7 +10,7 @@ namespace TACTSharp
         private List<string> CDNServers = [];
         private readonly ConcurrentDictionary<string, Lock> FileLocks = [];
         private readonly Lock cdnLock = new();
-        private bool HasLocal = false;
+        public bool HasLocal = false;
         private readonly Dictionary<byte, CASCIndexInstance> CASCIndexInstances = [];
         private Settings Settings;
 
