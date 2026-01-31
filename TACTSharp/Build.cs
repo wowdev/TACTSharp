@@ -54,7 +54,8 @@ namespace TACTSharp
             if (BuildConfig == null || CDNConfig == null)
                 throw new Exception("Failed to load configs");
             timer.Stop();
-            Console.WriteLine("Configs loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Configs loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
         }
 
         public void LoadConfigs(string buildConfig, string cdnConfig, string productConfig)
@@ -81,17 +82,20 @@ namespace TACTSharp
                 if (parsedJSON["all"]!["config"]!["decryption_key_name"] != null && !string.IsNullOrEmpty(parsedJSON["all"]!["config"]!["decryption_key_name"]!.GetValue<string>()))
                 {
                     cdn.ArmadilloKeyName = parsedJSON["all"]!["config"]!["decryption_key_name"]!.GetValue<string>();
-                    Console.WriteLine("Set Armadillo key name to " + cdn.ArmadilloKeyName);
+                    if (Settings.LogLevel <= TSLogLevel.Info)
+                        Console.WriteLine("Set Armadillo key name to " + cdn.ArmadilloKeyName);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Failed to parse product config: " + ex.Message);
+                if (Settings.LogLevel <= TSLogLevel.Warn)
+                    Console.WriteLine("Failed to parse product config: " + ex.Message);
             }
 
             timer.Stop();
 
-            Console.WriteLine("Product config loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Product config loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
             LoadConfigs(buildConfig, cdnConfig);
         }
@@ -109,7 +113,8 @@ namespace TACTSharp
             timer.Start();
             if (!CDNConfig.Values.TryGetValue("archive-group", out var groupArchiveIndex))
             {
-                Console.WriteLine("No group index found in CDN config, generating fresh group index...");
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("No group index found in CDN config, generating fresh group index...");
                 var groupIndex = new GroupIndex();
                 var groupIndexHash = groupIndex.Generate(cdn, Settings, "", CDNConfig.Values["archives"]);
                 var groupIndexPath = Path.Combine(Settings.CacheDir, cdn.ProductDirectory, "data", groupIndexHash + ".index");
@@ -133,7 +138,8 @@ namespace TACTSharp
                 }
             }
             timer.Stop();
-            Console.WriteLine("Group index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Group index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
             ulong decodedEncodingSize = 0;
             ulong encodedEncodingSize = 0;
@@ -146,7 +152,8 @@ namespace TACTSharp
             timer.Restart();
             Encoding = new EncodingInstance(cdn.GetDecodedFilePath("data", BuildConfig.Values["encoding"][1], encodedEncodingSize, decodedEncodingSize), (int)decodedEncodingSize);
             timer.Stop();
-            Console.WriteLine("Encoding loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Encoding loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
             timer.Restart();
             if (CDNConfig.Values.TryGetValue("file-index", out var fileIndex))
@@ -165,17 +172,20 @@ namespace TACTSharp
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine("Failed to load file index: " + e.Message);
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Failed to load file index: " + e.Message);
                     }
                 }
 
                 timer.Stop();
-                Console.WriteLine("File index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("File index loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
             }
             else
             {
                 // TODO: We might want to manually build up file-index based on encoding entries not present in indexes.
-                Console.WriteLine("No file index found in CDN config, skipping file index loading.");
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("No file index found in CDN config, skipping file index loading.");
             }
 
             timer.Restart();
@@ -188,7 +198,8 @@ namespace TACTSharp
 
             Root = new RootInstance(cdn.GetDecodedFilePath("data", Convert.ToHexStringLower(rootEncodingKeys[0]), 0, rootEncodingKeys.DecodedFileSize), Settings);
             timer.Stop();
-            Console.WriteLine("Root loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Root loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
 
             timer.Restart();
             if (!BuildConfig.Values.TryGetValue("install", out var installKey))
@@ -200,7 +211,9 @@ namespace TACTSharp
 
             Install = new InstallInstance(cdn.GetDecodedFilePath("data", Convert.ToHexStringLower(installEncodingKeys[0]), 0, installEncodingKeys.DecodedFileSize));
             timer.Stop();
-            Console.WriteLine("Install loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Install loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
         }
 
         public byte[] OpenFileByFDID(uint fileDataID)
@@ -246,7 +259,9 @@ namespace TACTSharp
                         return cdn.GetFile("data", Convert.ToHexStringLower(eKey), (ulong)fileIndexEntry.size, decodedSize, true);
                 }
 
-                Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
+                if (Settings.LogLevel <= TSLogLevel.Warn)
+                    Console.WriteLine("Warning: EKey " + Convert.ToHexStringLower(eKey) + " not found in group or file index and might not be available on CDN.");
+
                 return cdn.GetFile("data", Convert.ToHexStringLower(eKey), 0, decodedSize, true);
             }
             else

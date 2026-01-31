@@ -37,7 +37,9 @@ namespace TACTSharp
                 var fileInfo = new FileInfo(path);
                 if (!fileInfo.Exists)
                 {
-                    Console.WriteLine("Downloading listfile.csv");
+                    if(Settings.LogLevel <= TSLogLevel.Info)
+                        Console.WriteLine("Downloading listfile.csv");
+
                     Download();
                 }
                 else
@@ -48,13 +50,15 @@ namespace TACTSharp
                         var response = client.Send(request);
                         if (response.Content.Headers.LastModified > fileInfo.LastWriteTimeUtc)
                         {
-                            Console.WriteLine("Downloading listfile.csv as it is outdated (server last modified " + response.Content.Headers.LastModified + " > client last write " + fileInfo.LastWriteTimeUtc + ")");
+                            if (Settings.LogLevel <= TSLogLevel.Info)
+                                Console.WriteLine("Downloading listfile.csv as it is outdated (server last modified " + response.Content.Headers.LastModified + " > client last write " + fileInfo.LastWriteTimeUtc + ")");
                             Download();
                         }
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine("Failed to check if listfile.csv is outdated: " + e.Message + ", downloading regardless..");
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Failed to check if listfile.csv is outdated: " + e.Message + ", downloading regardless..");
                         Download();
                     }
                 }
@@ -77,7 +81,8 @@ namespace TACTSharp
 
                 if (!listfileResponse.IsSuccessStatusCode)
                 {
-                    Console.WriteLine("Failed to download listfile: HTTP " + listfileResponse.StatusCode);
+                    if (Settings.LogLevel <= TSLogLevel.Warn)
+                        Console.WriteLine("Failed to download listfile: HTTP " + listfileResponse.StatusCode);
                     return;
                 }
 
@@ -112,7 +117,8 @@ namespace TACTSharp
 
             sw.Stop();
 
-            Console.WriteLine("Loaded " + nameHashToFDID.Count + " listfile entries in " + sw.Elapsed.TotalMilliseconds + "ms");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Loaded " + nameHashToFDID.Count + " listfile entries in " + sw.Elapsed.TotalMilliseconds + "ms");
         }
 
         private void LoadFilenames()
@@ -138,7 +144,8 @@ namespace TACTSharp
 
             sw.Stop();
 
-            Console.WriteLine("Loaded " + fdidToName.Count + " listfile filename entries in " + sw.Elapsed.TotalMilliseconds + "ms");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Loaded " + fdidToName.Count + " listfile filename entries in " + sw.Elapsed.TotalMilliseconds + "ms");
         }
 
         public uint GetFDID(string name)

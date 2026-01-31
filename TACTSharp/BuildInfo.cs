@@ -64,7 +64,10 @@
                 if (folderMap.TryGetValue(availableBuild.Product, out string? folder))
                     availableBuild.Folder = folder;
                 else
-                    Console.WriteLine("No flavor found matching " + availableBuild.Product);
+                {
+                    if (Settings.LogLevel <= TSLogLevel.Warn)
+                        Console.WriteLine("No flavor found matching " + availableBuild.Product);
+                }
 
                 Entries.Add(availableBuild);
             }

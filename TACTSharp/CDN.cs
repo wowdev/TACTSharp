@@ -40,11 +40,13 @@ namespace TACTSharp
                 localTimer.Start();
                 LoadCASCIndices();
                 localTimer.Stop();
-                Console.WriteLine("Loaded local CASC indices in " + Math.Round(localTimer.Elapsed.TotalMilliseconds) + "ms");
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("Loaded local CASC indices in " + Math.Round(localTimer.Elapsed.TotalMilliseconds) + "ms");
             }
             catch (Exception e)
             {
-                Console.WriteLine("Failed to load CASC indices: " + e.Message);
+                if (Settings.LogLevel <= TSLogLevel.Warn)
+                    Console.WriteLine("Failed to load CASC indices: " + e.Message);
             }
         }
 
@@ -97,14 +99,18 @@ namespace TACTSharp
                     try
                     {
                         var ping = new System.Net.NetworkInformation.Ping().Send(server, 400).RoundtripTime;
-                        Console.WriteLine("Ping to " + server + ": " + ping + "ms");
+
+                        if (Settings.LogLevel <= TSLogLevel.Info)
+                            Console.WriteLine("Ping to " + server + ": " + ping + "ms");
+
                         if(server == "blzddist1-a.akamaihd.net")
                             ping += 5000; // TEMP: Penalize Akamai for having missing files as of November 2025
                         return (server, ping);
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine("Failed to ping CDN " + server + ": " + (e.InnerException != null ? e.InnerException.Message : e.Message));
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Failed to ping CDN " + server + ": " + (e.InnerException != null ? e.InnerException.Message : e.Message));
                         return (server, 99999);
                     }
                 }));
@@ -115,7 +121,8 @@ namespace TACTSharp
             CDNServers = [.. pings.OrderBy(p => p.ping).Where(p => p.ping != 99999).Select(p => p.server)];
 
             timer.Stop();
-            Console.WriteLine("Pinged " + CDNServers.Count + " in " + Math.Round(timer.Elapsed.TotalMilliseconds) + "ms, fastest CDNs in order: " + string.Join(", ", CDNServers));
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Pinged " + CDNServers.Count + " in " + Math.Round(timer.Elapsed.TotalMilliseconds) + "ms, fastest CDNs in order: " + string.Join(", ", CDNServers));
         }
         private void LoadCASCIndices()
         {
@@ -191,7 +198,8 @@ namespace TACTSharp
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Failed to read local file: " + e.Message);
+                    if (Settings.LogLevel <= TSLogLevel.Warn)
+                        Console.WriteLine("Failed to read local file: " + e.Message);
                 }
             }
 
@@ -225,7 +233,10 @@ namespace TACTSharp
                 if (File.Exists(cdnPath))
                 {
                     if (size > 0 && (ulong)new FileInfo(cdnPath).Length != size)
-                        Console.WriteLine("Warning! Found " + hash + " in CDN dir but size does not match! " + size + " != " + new FileInfo(cachePath).Length + ", continuing to download.");
+                    {
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Warning! Found " + hash + " in CDN dir but size does not match! " + size + " != " + new FileInfo(cdnPath).Length + ", continuing to download.");
+                    }
                     else
                         lock (FileLocks[cdnPath])
                             return File.ReadAllBytes(cdnPath);
@@ -239,7 +250,8 @@ namespace TACTSharp
             {
                 var url = $"https://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
-                Console.WriteLine("Downloading " + url);
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
 
@@ -253,7 +265,8 @@ namespace TACTSharp
 
                         if (!response.IsSuccessStatusCode)
                         {
-                            Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
+                            if (Settings.LogLevel <= TSLogLevel.Warn)
+                                Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
                             continue;
                         }
 
@@ -271,7 +284,8 @@ namespace TACTSharp
                                     ms.Position = 0;
                                     if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, ms.ToArray(), out var output))
                                     {
-                                        Console.WriteLine("Failed to decrypt file " + hash + " downloaded from " + CDNServers[i]);
+                                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                                            Console.WriteLine("Failed to decrypt file " + hash + " downloaded from " + CDNServers[i]);
                                         File.Delete(cachePath);
                                         continue;
                                     }
@@ -282,7 +296,8 @@ namespace TACTSharp
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine("Failed to download file: " + e.Message);
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Failed to download file: " + e.Message);
                         File.Delete(cachePath);
                         continue;
                     }
@@ -324,7 +339,8 @@ namespace TACTSharp
 
                             if (archiveOffset + archiveSize > archiveLength)
                             {
-                                Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
+                                if (Settings.LogLevel <= TSLogLevel.Warn)
+                                    Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
                                 data = null;
                                 return false;
                             }
@@ -334,7 +350,8 @@ namespace TACTSharp
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine("Failed to read local file: " + e.Message);
+                            if (Settings.LogLevel <= TSLogLevel.Warn)
+                                Console.WriteLine("Failed to read local file: " + e.Message);
                             data = null;
                             return false;
                         }
@@ -346,7 +363,8 @@ namespace TACTSharp
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Failed to read local file (make sure it is not in use): " + e.Message);
+                    if (Settings.LogLevel <= TSLogLevel.Warn)
+                        Console.WriteLine("Failed to read local file (make sure it is not in use): " + e.Message);
                 }
             }
 
@@ -365,7 +383,8 @@ namespace TACTSharp
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Failed to read local file: " + e.Message);
+                    if (Settings.LogLevel <= TSLogLevel.Warn)
+                        Console.WriteLine("Failed to read local file: " + e.Message);
                 }
             }
 
@@ -390,7 +409,10 @@ namespace TACTSharp
                 if (File.Exists(cdnPath))
                 {
                     if (new FileInfo(cdnPath).Length < (offset + size))
-                        Console.WriteLine("Warning! Found " + archive + " in CDN dir but size is lower than offset+size " + offset + size + " != " + new FileInfo(cdnPath).Length + ", continuing to download.");
+                    {
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Warning! Found " + archive + " in CDN dir but size is lower than offset+size " + offset + size + " != " + new FileInfo(cdnPath).Length + ", continuing to download.");
+                    }
                     else
                     {
                         lock (FileLocks[cdnPath])
@@ -422,7 +444,8 @@ namespace TACTSharp
             {
                 var url = $"https://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
 
-                Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size + " from " + CDNServers[i]);
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size + " from " + CDNServers[i]);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url)
                 {
@@ -438,7 +461,8 @@ namespace TACTSharp
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
                         continue;
                     }
 
@@ -462,7 +486,8 @@ namespace TACTSharp
                                         ms.Position = 0;
                                         if (!BLTE.TryDecryptArmadillo(archive, ArmadilloKeyName, ms.ToArray(), out var output, offset))
                                         {
-                                            Console.WriteLine("Failed to decrypt file " + eKey + " from archive " + archive + " downloaded from " + CDNServers[i]);
+                                            if (Settings.LogLevel <= TSLogLevel.Warn)
+                                                Console.WriteLine("Failed to decrypt file " + eKey + " from archive " + archive + " downloaded from " + CDNServers[i]);
                                             File.Delete(cachePath);
                                             continue;
                                         }
@@ -473,7 +498,8 @@ namespace TACTSharp
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine("Failed to download file: " + ex.Message);
+                            if (Settings.LogLevel <= TSLogLevel.Warn)
+                                Console.WriteLine("Failed to download file: " + ex.Message);
                             File.Delete(cachePath);
                             continue;
                         }
@@ -481,7 +507,8 @@ namespace TACTSharp
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Encountered exception " + e.Message + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
+                    if (Settings.LogLevel <= TSLogLevel.Warn)
+                        Console.WriteLine("Encountered exception " + e.Message + " downloading " + eKey + " (archive " + archive + ") from " + CDNServers[i]);
                     continue;
                 }
 
@@ -562,7 +589,8 @@ namespace TACTSharp
             {
                 var url = $"https://{CDNServers[i]}/tpr/configs/data/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
-                Console.WriteLine("Downloading " + url);
+                if(Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
 
@@ -570,7 +598,9 @@ namespace TACTSharp
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
+                    if(Settings.LogLevel <= TSLogLevel.Warn)
+                        Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
+
                     continue;
                 }
 
@@ -585,7 +615,9 @@ namespace TACTSharp
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine("Failed to download file: " + e.Message);
+                        if(Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Failed to download file: " + e.Message);
+
                         File.Delete(cachePath);
                         continue;
                     }

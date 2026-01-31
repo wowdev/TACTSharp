@@ -146,7 +146,9 @@ namespace TACTSharp
 
                     _encodingSpecs = [.. eSpecs];
                     timer.Stop();
-                    Console.WriteLine("Loaded " + _encodingSpecs.Length + " ESpecs in " + timer.Elapsed.TotalMilliseconds + "ms");
+
+                    if (Settings.LogLevel <= TSLogLevel.Info)
+                        Console.WriteLine("Loaded " + _encodingSpecs.Length + " ESpecs in " + timer.Elapsed.TotalMilliseconds + "ms");
                 }
             }
 
