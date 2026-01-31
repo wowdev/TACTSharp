@@ -22,7 +22,7 @@ jobs:
             config: Release
           - kind: macOS
             os: macos-15
-            target: osx-x64
+            target: osx-arm64
             config: Release
     runs-on: ${{ matrix.os }}
     steps:
