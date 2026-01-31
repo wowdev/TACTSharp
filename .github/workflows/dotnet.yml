@@ -21,7 +21,7 @@ jobs:
             target: win-x64
             config: Release
           - kind: macOS
-            os: macos-13
+            os: macos-15
             target: osx-x64
             config: Release
     runs-on: ${{ matrix.os }}
