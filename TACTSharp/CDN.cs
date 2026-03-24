@@ -103,7 +103,7 @@ namespace TACTSharp
                         if (Settings.LogLevel <= TSLogLevel.Info)
                             Console.WriteLine("Ping to " + server + ": " + ping + "ms");
 
-                        if(server == "blzddist1-a.akamaihd.net")
+                        if (server == "blzddist1-a.akamaihd.net")
                             ping += 5000; // TEMP: Penalize Akamai for having missing files as of November 2025
                         return (server, ping);
                     }
@@ -589,7 +589,7 @@ namespace TACTSharp
             {
                 var url = $"https://{CDNServers[i]}/tpr/configs/data/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
-                if(Settings.LogLevel <= TSLogLevel.Info)
+                if (Settings.LogLevel <= TSLogLevel.Info)
                     Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -598,7 +598,7 @@ namespace TACTSharp
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    if(Settings.LogLevel <= TSLogLevel.Warn)
+                    if (Settings.LogLevel <= TSLogLevel.Warn)
                         Console.WriteLine("Encountered HTTP " + response.StatusCode + " downloading " + hash + " from " + CDNServers[i]);
 
                     continue;
@@ -615,7 +615,7 @@ namespace TACTSharp
                     }
                     catch (Exception e)
                     {
-                        if(Settings.LogLevel <= TSLogLevel.Warn)
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
                             Console.WriteLine("Failed to download file: " + e.Message);
 
                         File.Delete(cachePath);
@@ -627,6 +627,13 @@ namespace TACTSharp
             }
 
             throw new FileNotFoundException("Exhausted all CDNs trying to download " + hash);
+        }
+
+        public void InvalidateCache(string type, string hash)
+        {
+            var cachePath = Path.Combine(Settings.CacheDir, ProductDirectory, type, hash);
+            if (File.Exists(cachePath))
+                File.Delete(cachePath);
         }
     }
 }
