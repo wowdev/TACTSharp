@@ -2,6 +2,7 @@
 using System.CommandLine;
 using System.Diagnostics;
 using TACTSharp;
+using TACTTool.RunModes;
 
 namespace TACTTool
 {
@@ -86,7 +87,7 @@ namespace TACTTool
 
             if(RunModeSetting == RunMode.Verify)
             {
-                RunModes.Verify.Run(build);
+                Verify.Run(build);
                 return;
             }
 
