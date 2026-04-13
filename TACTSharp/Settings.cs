@@ -16,6 +16,7 @@
         public bool TryCDN = true;
         public string ListfileURL = "https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv";
         public List<string> AdditionalCDNs = [];
+        public List<string> BlockedCDNs = [];
         public static TSLogLevel LogLevel = TSLogLevel.Info;
     }
 

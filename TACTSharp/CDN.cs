@@ -91,6 +91,8 @@ namespace TACTSharp
 
             CDNServers.AddRange(Settings.AdditionalCDNs);
 
+            CDNServers.RemoveAll(Settings.BlockedCDNs.Contains);
+
             var pingTasks = new List<Task<(string server, long ping)>>();
             foreach (var server in CDNServers.Distinct())
             {
