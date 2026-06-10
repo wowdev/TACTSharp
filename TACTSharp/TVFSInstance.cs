@@ -396,7 +396,7 @@ namespace TACTSharp
                     var entry = new RootEntry
                     {
                         fileDataID = generic.FileDataId,
-                        md5 = new MD5(span.EKey),
+                        md5 = new MD5(generic.CKey),
                         localeFlags = (LocaleFlags)localeFlags,
                         contentFlags = (ContentFlags)contentFlags,
                     };
@@ -409,7 +409,7 @@ namespace TACTSharp
                 var entry = new RootEntry
                 {
                     fileDataID = generic.FileDataId,
-                    md5 = new MD5(spans[0].EKey),
+                    md5 = new MD5(generic.CKey),
                     localeFlags = (LocaleFlags)localeFlags,
                     contentFlags = (ContentFlags)contentFlags,
                 };
