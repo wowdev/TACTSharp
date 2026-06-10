@@ -79,6 +79,9 @@ namespace TACTTool
             var additionalCDNsOption = new Option<string?>("--cdns") { Description = "Additional CDN hostnames to use, separated by commas (only specify hostnames)" };
             rootCommand.Options.Add(additionalCDNsOption);
 
+            var manifestTypeOption = new Option<string?>("--manifest") { Description = "Manifest type to use when loading build (root or tvfs, defaults to root)" };
+            rootCommand.Options.Add(manifestTypeOption);
+
             rootCommand.SetAction(CommandLineArgHandler);
 
             build = new BuildInstance();
@@ -265,6 +268,14 @@ namespace TACTTool
                         break;
                     case "--cdns":
                         build!.Settings.AdditionalCDNs.AddRange((optionValue).Split(","));
+                        break;
+                    case "--manifest":
+                        build!.Settings.ManifestType = (optionValue).ToLower() switch
+                        {
+                            "root" => AssetManifestType.Root,
+                            "tvfs" => AssetManifestType.TVFS,
+                            _ => throw new Exception("Invalid manifest type. Available types: root, tvfs"),
+                        };
                         break;
                     case "--version":
                     case "--help":

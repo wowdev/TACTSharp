@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
+using TACTSharp.Interfaces;
 
 namespace TACTSharp
 {
@@ -10,7 +11,7 @@ namespace TACTSharp
         public string? ProductConfig { get; private set; }
 
         public EncodingInstance? Encoding { get; private set; }
-        public RootInstance? Root { get; private set; }
+        public IRootInstance? Root { get; private set; }
         public InstallInstance? Install { get; private set; }
         public IndexInstance? GroupIndex { get; private set; }
         public IndexInstance? FileIndex { get; private set; }
@@ -189,17 +190,64 @@ namespace TACTSharp
             }
 
             timer.Restart();
-            if (!BuildConfig.Values.TryGetValue("root", out var rootKey))
-                throw new Exception("No root key found in build config");
 
-            var rootEncodingKeys = Encoding.FindContentKey(Convert.FromHexString(rootKey[0]));
-            if (!rootEncodingKeys)
-                throw new Exception("Root key not found in encoding");
+            var useTVFS = Settings.ManifestType == AssetManifestType.TVFS;
+            if (!BuildConfig.Values.TryGetValue("root", out var rootKey) || rootKey[0] == "00000000000000000000000000000000")
+            {
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("No root key found in build config, falling back to TVFS.");
 
-            Root = new RootInstance(cdn.GetDecodedFilePath("data", Convert.ToHexStringLower(rootEncodingKeys[0]), 0, rootEncodingKeys.DecodedFileSize), Settings);
+                useTVFS = true;
+            }
+
+            if (!useTVFS)
+            {
+                var rootEncodingKeys = Encoding.FindContentKey(Convert.FromHexString(rootKey[0]));
+                if (!rootEncodingKeys)
+                    throw new Exception("Root key not found in encoding");
+
+                Root = new RootInstance(cdn.GetDecodedFilePath("data", Convert.ToHexStringLower(rootEncodingKeys[0]), 0, rootEncodingKeys.DecodedFileSize), Settings);
+
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("Root loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+            }
+            else
+            {
+                var vfsKeys = new Dictionary<uint, (string cKey, string eKey)>();
+                var vfsSizes = new Dictionary<uint, (uint decodedSize, uint encodedSize)>();
+
+                foreach (var bcKey in BuildConfig.Values)
+                {
+                    if (bcKey.Key.StartsWith("vfs") && !bcKey.Key.StartsWith("vfs-root")) // vfs-1 always seems to be the same as vfs-root
+                    {
+                        if (bcKey.Key.EndsWith("-size"))
+                        {
+                            if (uint.TryParse(bcKey.Key.Replace("-size", "").Replace("vfs-", ""), out var vfsIndex))
+                                vfsSizes.Add(vfsIndex, (uint.Parse(bcKey.Value[0]), uint.Parse(bcKey.Value[1])));
+                            else
+                                if (Settings.LogLevel <= TSLogLevel.Warn)
+                                    Console.WriteLine("Warning: Failed to parse buildconfig VFS size " + bcKey.Key + ", skipping..");
+                        }
+                        else
+                        {
+                            if (uint.TryParse(bcKey.Key.Replace("vfs-", ""), out var vfsIndex))
+                                vfsKeys.Add(vfsIndex, (bcKey.Value[0], bcKey.Value[1]));
+                            else
+                                if (Settings.LogLevel <= TSLogLevel.Warn)
+                                    Console.WriteLine("Warning: Failed to parse buildconfig VFS key " + bcKey.Key + ", skipping..");
+                        }
+                    }
+                }
+
+                // TODO: Not great to feed all this stuff into it
+                Root = new TVFSInstance(vfsKeys, vfsSizes, CDNConfig, GroupIndex, FileIndex, cdn, Settings);
+
+                if (Settings.LogLevel <= TSLogLevel.Info)
+                    Console.WriteLine("TVFS loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+            }
+          
             timer.Stop();
-            if (Settings.LogLevel <= TSLogLevel.Info)
-                Console.WriteLine("Root loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
+         
 
             timer.Restart();
             if (!BuildConfig.Values.TryGetValue("install", out var installKey))

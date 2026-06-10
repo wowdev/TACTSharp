@@ -6,6 +6,7 @@
         public string Product = "wow";
         public RootInstance.LocaleFlags Locale = RootInstance.LocaleFlags.enUS;
         public RootInstance.LoadMode RootMode = RootInstance.LoadMode.Normal;
+        public AssetManifestType ManifestType = AssetManifestType.Root;
         public string? BaseDir;
         public string? BuildConfig;
         public string? CDNConfig;
@@ -18,6 +19,12 @@
         public List<string> AdditionalCDNs = [];
         public List<string> BlockedCDNs = [];
         public static TSLogLevel LogLevel = TSLogLevel.Info;
+    }
+
+    public enum AssetManifestType
+    {
+        Root,
+        TVFS
     }
 
     public enum TSLogLevel
