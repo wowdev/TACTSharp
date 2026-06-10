@@ -14,6 +14,7 @@ namespace TACTSharp
         private readonly Dictionary<string, FileSpan> rootManifestEntries = [];
         private readonly ConcurrentDictionary<uint, RootEntry> entriesFDID = [];
         private readonly ConcurrentDictionary<uint, List<RootEntry>> entriesFDIDFull = [];
+        private readonly Lock entryLock = new Lock();
 
         private LoadMode loadedWith;
 
@@ -386,22 +387,27 @@ namespace TACTSharp
                 return;
             }
 
-            if(loadedWith == LoadMode.Full)
+
+
+            if (loadedWith == LoadMode.Full)
             {
-                if (!entriesFDIDFull.TryGetValue(generic.FileDataId, out var list))
-                    entriesFDIDFull[generic.FileDataId] = list = new List<RootEntry>();
-
-                foreach (var span in spans)
+                lock (entryLock)
                 {
-                    var entry = new RootEntry
-                    {
-                        fileDataID = generic.FileDataId,
-                        md5 = new MD5(generic.CKey),
-                        localeFlags = (LocaleFlags)localeFlags,
-                        contentFlags = (ContentFlags)contentFlags,
-                    };
+                    if (!entriesFDIDFull.TryGetValue(generic.FileDataId, out var list))
+                        entriesFDIDFull[generic.FileDataId] = list = new List<RootEntry>();
 
-                    list.Add(entry);
+                    foreach (var span in spans)
+                    {
+                        var entry = new RootEntry
+                        {
+                            fileDataID = generic.FileDataId,
+                            md5 = new MD5(generic.CKey),
+                            localeFlags = (LocaleFlags)localeFlags,
+                            contentFlags = (ContentFlags)contentFlags,
+                        };
+
+                        list.Add(entry);
+                    }
                 }
             }
             else
@@ -414,7 +420,8 @@ namespace TACTSharp
                     contentFlags = (ContentFlags)contentFlags,
                 };
 
-                entriesFDID.TryAdd(generic.FileDataId, entry);
+                lock (entryLock)
+                    entriesFDID.TryAdd(generic.FileDataId, entry);
             }
         }
 
