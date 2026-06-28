@@ -2,6 +2,8 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+using TACTSharp.Utils;
+
 namespace TACTSharp.Extensions
 {
     internal static class BinarySearchExtensions

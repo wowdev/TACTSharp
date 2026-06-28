@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace TACTSharp
+namespace TACTSharp.Utils
 {
     internal readonly ref struct StridedSpan<T>(Span<T> data, int stride)
     {
