@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
+
+using TACTSharp.Extensions;
 using TACTSharp.Interfaces;
 using static TACTSharp.RootInstance;
 
