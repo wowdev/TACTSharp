@@ -19,6 +19,7 @@
         public List<string> AdditionalCDNs = [];
         public List<string> BlockedCDNs = [];
         public static TSLogLevel LogLevel = TSLogLevel.Info;
+        public bool ForceHTTP1 = false;
     }
 
     public enum AssetManifestType

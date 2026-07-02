@@ -256,6 +256,8 @@ namespace TACTSharp
                     Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
+                if (Settings.ForceHTTP1)
+                    request.Version = new Version(1, 1);
 
                 lock (FileLocks[cachePath])
                 {
@@ -457,6 +459,9 @@ namespace TACTSharp
                     }
                 };
 
+                if (Settings.ForceHTTP1)
+                    request.Version = new Version(1, 1);
+
                 try
                 {
                     var response = Client.Send(request, token);
@@ -595,6 +600,9 @@ namespace TACTSharp
                     Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+                if (Settings.ForceHTTP1)
+                    request.Version = new Version(1, 1);
 
                 var response = Client.Send(request, token);
 
