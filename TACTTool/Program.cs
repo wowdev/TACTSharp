@@ -100,7 +100,7 @@ namespace TACTTool
                 return;
             }
 
-            build.LoadConfigs(build.Settings.BuildConfig, build.Settings.CDNConfig);
+            build.LoadConfigs(build.Settings.BuildConfig, build.Settings.CDNConfig, build.Settings.ProductConfig);
 
             #endregion
 
@@ -336,6 +336,7 @@ namespace TACTTool
 
                     build.Settings.BuildConfig ??= splitLine[1];
                     build.Settings.CDNConfig ??= splitLine[2];
+                    build.Settings.ProductConfig ??= splitLine[6];
                 }
 
                 // If we have a build config but no cdn config, take the first available cdn config with that build config
