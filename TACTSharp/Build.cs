@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-using System.Text.Json.Nodes;
-using TACTSharp.Interfaces;
+﻿using TACTSharp.Interfaces;
 
 namespace TACTSharp
 {
@@ -76,15 +74,18 @@ namespace TACTSharp
 
             try
             {
-                var parsedJSON = JsonSerializer.Deserialize<JsonNode>(ProductConfig);
-                if (parsedJSON == null || parsedJSON["all"] == null || parsedJSON["all"]!["config"] == null)
-                    throw new Exception("Product config has missing keys");
-
-                if (parsedJSON["all"]!["config"]!["decryption_key_name"] != null && !string.IsNullOrEmpty(parsedJSON["all"]!["config"]!["decryption_key_name"]!.GetValue<string>()))
+                if (ProductConfig.Contains("decryption_key_name"))
                 {
-                    cdn.ArmadilloKeyName = parsedJSON["all"]!["config"]!["decryption_key_name"]!.GetValue<string>();
-                    if (Settings.LogLevel <= TSLogLevel.Info)
-                        Console.WriteLine("Set Armadillo key name to " + cdn.ArmadilloKeyName);
+                    var valueStart = ProductConfig.IndexOf("decryption_key_name") + 22; // +22 goes to start of value
+                    var valueEnd = ProductConfig.IndexOf('"', valueStart); // get next quote after value start
+                    var decryptionKeyName = ProductConfig[valueStart..valueEnd];
+
+                    if (!string.IsNullOrEmpty(decryptionKeyName))
+                    {
+                        cdn.ArmadilloKeyName = decryptionKeyName;
+                        if (Settings.LogLevel <= TSLogLevel.Info)
+                            Console.WriteLine("Set Armadillo key name to " + cdn.ArmadilloKeyName);
+                    }
                 }
             }
             catch (Exception ex)
@@ -202,7 +203,7 @@ namespace TACTSharp
 
             if (!useTVFS)
             {
-                var rootEncodingKeys = Encoding.FindContentKey(Convert.FromHexString(rootKey[0]));
+                var rootEncodingKeys = Encoding.FindContentKey(Convert.FromHexString(rootKey![0]));
                 if (!rootEncodingKeys)
                     throw new Exception("Root key not found in encoding");
 
@@ -245,9 +246,9 @@ namespace TACTSharp
                 if (Settings.LogLevel <= TSLogLevel.Info)
                     Console.WriteLine("TVFS loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
             }
-          
+
             timer.Stop();
-         
+
 
             timer.Restart();
             if (!BuildConfig.Values.TryGetValue("install", out var installKey))
