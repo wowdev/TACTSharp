@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
+using TACTSharp.Interfaces;
+using TACTSharp.VersionServices;
 
 namespace TACTSharp
 {
@@ -20,10 +22,17 @@ namespace TACTSharp
 
         public string ArmadilloKeyName = string.Empty;
 
+        private IVersionService? versionService;
+
         // TODO: Memory mapped cache file access?
         public CDN(Settings settings)
         {
             Settings = settings;
+
+            if (settings.versionService == VersionService.Ribbit)
+                versionService = new Ribbit();
+            else if (settings.versionService == VersionService.TACTChannels)
+                versionService = new TACTChannels();
         }
 
         public void OpenLocal()
@@ -69,29 +78,15 @@ namespace TACTSharp
             var timer = new Stopwatch();
             timer.Start();
 
-            var cdnsFile = GetPatchServiceFile(Settings.Product, "cdns").Result;
-
-            foreach (var line in cdnsFile.Split('\n'))
-            {
-                if (line.Length == 0)
-                    continue;
-
-                if (!line.StartsWith(Settings.Region + "|"))
-                    continue;
-
-                var splitLine = line.Split('|');
-                if (splitLine.Length < 2)
-                    continue;
-
-                if (string.IsNullOrEmpty(ProductDirectory))
-                    ProductDirectory = splitLine[1];
-
-                CDNServers.AddRange(splitLine[2].Trim().Split(' '));
-            }
+            var cdns = versionService?.GetCDNs(Settings.Product, Settings.Region) ?? new List<string>();
+            CDNServers.AddRange(cdns);
 
             CDNServers.AddRange(Settings.AdditionalCDNs);
 
             CDNServers.RemoveAll(Settings.BlockedCDNs.Contains);
+
+            if (string.IsNullOrEmpty(ProductDirectory))
+                ProductDirectory = versionService?.GetCDNDirectory(Settings.Product) ?? string.Empty;
 
             var pingTasks = new List<Task<(string server, long ping)>>();
             foreach (var server in CDNServers.Distinct())
@@ -167,11 +162,6 @@ namespace TACTSharp
                     HasLocal = true;
                 }
             }
-        }
-
-        public async Task<string> GetPatchServiceFile(string product, string file = "versions")
-        {
-            return await Client.GetStringAsync($"https://{Settings.Region}.version.battle.net/v2/products/{product}/{file}");
         }
 
         private byte[] DownloadFile(string type, string hash, ulong size = 0, CancellationToken token = new())

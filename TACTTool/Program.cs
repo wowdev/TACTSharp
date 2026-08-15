@@ -88,7 +88,7 @@ namespace TACTTool
 
             await rootCommand.Parse(args).InvokeAsync();
 
-            if(RunModeSetting == RunMode.Verify)
+            if (RunModeSetting == RunMode.Verify)
             {
                 Verify.Run(build);
                 return;
@@ -244,7 +244,7 @@ namespace TACTTool
                     case "--mode":
                         RunModeSetting = optionValue.Equals("verify", StringComparison.CurrentCultureIgnoreCase) ? RunMode.Verify : RunMode.Extract;
 
-                        if(RunModeSetting == RunMode.Extract)
+                        if (RunModeSetting == RunMode.Extract)
                         {
                             Mode = (optionValue).ToLower() switch
                             {
@@ -261,7 +261,7 @@ namespace TACTTool
                                 _ => throw new Exception("Invalid input mode. Available modes: list, ekey/ehash, ckey/chash, fdid/id, filename/name"),
                             };
                         }
-                        
+
                         break;
                     case "--cdndir":
                         build!.Settings.CDNDir = optionValue;
@@ -286,9 +286,9 @@ namespace TACTTool
                 }
             }
 
-            if(RunModeSetting == RunMode.Verify)
+            if (RunModeSetting == RunMode.Verify)
             {
-                if(string.IsNullOrEmpty(build!.Settings.CDNDir))
+                if (string.IsNullOrEmpty(build!.Settings.CDNDir))
                     throw new Exception("CDN directory must be specified for verify mode.");
 
                 return;
@@ -325,32 +325,29 @@ namespace TACTTool
             }
             else
             {
-                // Load from patch service
-                var versions = await build.cdn.GetPatchServiceFile(build.Settings.Product, "versions");
-                foreach (var line in versions.Split('\n'))
+                // Load from patch service, which for now is Ribbit
+                var versionService = new TACTSharp.VersionServices.Ribbit();
+                var version = await versionService.GetVersionAsync(build.Settings.Product, build.Settings.Region);
+
+                if (version.VersionNumber != 0)
                 {
-                    if (!line.StartsWith(build.Settings.Region + "|"))
-                        continue;
-
-                    var splitLine = line.Split('|');
-
-                    build.Settings.BuildConfig ??= splitLine[1];
-                    build.Settings.CDNConfig ??= splitLine[2];
-                    build.Settings.ProductConfig ??= splitLine[6];
+                    build.Settings.BuildConfig ??= version.BuildConfig;
+                    build.Settings.CDNConfig ??= version.CDNConfig;
+                    build.Settings.ProductConfig ??= version.ProductConfig;
                 }
+
+                if (string.IsNullOrEmpty(build.cdn.ProductDirectory))
+                    build.cdn.ProductDirectory = await versionService.GetCDNDirectoryAsync(build.Settings.Product);
 
                 // If we have a build config but no cdn config, take the first available cdn config with that build config
                 if (!string.IsNullOrEmpty(build.Settings.BuildConfig) && build.Settings.CDNConfig == null)
                 {
-                    foreach (var line in versions.Split('\n'))
+                    var versions = await versionService.GetVersionsAsync(build.Settings.Product);
+                    foreach (var ver in versions)
                     {
-                        if (line.StartsWith('#'))
-                            continue;
-
-                        var splitLine = line.Split('|');
-                        if (splitLine[1] == build.Settings.BuildConfig)
+                        if (ver.Value.BuildConfig == build.Settings.BuildConfig)
                         {
-                            build.Settings.CDNConfig = splitLine[2];
+                            build.Settings.CDNConfig = ver.Value.CDNConfig;
                             break;
                         }
                     }

@@ -20,6 +20,13 @@
         public List<string> BlockedCDNs = [];
         public static TSLogLevel LogLevel = TSLogLevel.Info;
         public bool ForceHTTP1 = false;
+        public VersionService versionService = VersionService.Ribbit;
+    }
+
+    public enum VersionService
+    {
+        Ribbit,
+        TACTChannels
     }
 
     public enum AssetManifestType
