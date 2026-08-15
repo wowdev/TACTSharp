@@ -18,18 +18,10 @@ namespace TACTBench
         {
             var _build = new BuildInstance();
 
-            var versions = await _build.cdn.GetPatchServiceFile("wow", "versions");
-            foreach (var line in versions.Split('\n'))
-            {
-                if (!line.StartsWith("us|"))
-                    continue;
-
-                var splitLine = line.Split('|');
-
-                _build.Settings.BuildConfig ??= splitLine[1];
-                _build.Settings.CDNConfig ??= splitLine[2];
-                break;
-            }
+            var versionService = new TACTSharp.VersionServices.Ribbit();
+            var version = versionService.GetVersion("wow", "us");
+            _build.Settings.BuildConfig = version.BuildConfig;
+            _build.Settings.CDNConfig = version.CDNConfig;
 
             _build.LoadConfigs(_build.Settings.BuildConfig!, _build.Settings.CDNConfig!);
             _build.Load();
