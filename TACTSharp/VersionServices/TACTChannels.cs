@@ -41,6 +41,9 @@ namespace TACTSharp.VersionServices
 
         public async Task<bool> RefreshAsync()
         {
+            if (Settings.LogLevel <= TSLogLevel.Debug)
+                Console.WriteLine("Refreshing TACT channels...");
+
             var catalogDefinitionResult = await client.GetStringAsync("https://distribution.version.battle.net/summary");
             var summary = JsonSerializer.Deserialize(catalogDefinitionResult, ChannelDefinitionContext.Default.ChannelDefinition);
             if (summary != null)
@@ -63,21 +66,49 @@ namespace TACTSharp.VersionServices
 
         public async Task<string> GetFileAsync(string hash)
         {
-            // TODO: Caching
+            if(Settings.LogLevel <= TSLogLevel.Debug)
+                Console.WriteLine("Downloading TACT Channel file " + hash + "...");
 
-            return await client.GetStringAsync("https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash);
+            // TODO: Setting
+            var cacheDir = "cache";
+
+            Directory.CreateDirectory(cacheDir);
+
+            var cacheFile = System.IO.Path.Combine(cacheDir, Path, hash[0..2], hash[2..4], hash);
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(cacheFile)!);
+
+            if (System.IO.File.Exists(cacheFile))
+                return await System.IO.File.ReadAllTextAsync(cacheFile);
+
+            var result = await client.GetStringAsync("https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash);
+            await System.IO.File.WriteAllTextAsync(cacheFile, result);
+            return result;
         }
 
         public string GetFile(string hash)
         {
-            // TODO: Caching
+            if(Settings.LogLevel <= TSLogLevel.Debug)
+                Console.WriteLine("Downloading TACT Channel file " + hash + "...");
+
+            // TODO: Setting
+            var cacheDir = "cache";
+
+            Directory.CreateDirectory(cacheDir);
+
+            var cacheFile = System.IO.Path.Combine(cacheDir, Path, hash[0..2], hash[2..4], hash);
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(cacheFile)!);
+
+            if (System.IO.File.Exists(cacheFile))
+                return System.IO.File.ReadAllText(cacheFile);
 
             var catalogRequest = new HttpRequestMessage(HttpMethod.Get, "https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash);
             var catalogResult = client.Send(catalogRequest);
             using (var catalogMS = new MemoryStream())
             {
                 catalogResult.Content.ReadAsStream().CopyTo(catalogMS);
-                return System.Text.Encoding.UTF8.GetString(catalogMS.ToArray());
+                var arr = catalogMS.ToArray();
+                File.WriteAllBytes(cacheFile, arr);
+                return System.Text.Encoding.UTF8.GetString(arr);
             }
         }
 
@@ -313,6 +344,44 @@ namespace TACTSharp.VersionServices
             }
 
             return versionResult;
+        }
+
+        public List<string> GetProductVariants()
+        {
+            var products = new List<string>();
+
+            if (Catalog == null)
+                Refresh();
+
+            foreach (var product in Catalog!.Products)
+            {
+                if(product.Builds.Count == 0)
+                    continue;
+
+                if (!products.Contains(product.Variant))
+                    products.Add(product.Variant);
+            }
+
+            return products;
+        }
+
+        public async Task<List<string>> GetProductVariantsAsync()
+        {
+            var products = new List<string>();
+
+            if (Catalog == null)
+                await RefreshAsync();
+
+            foreach (var product in Catalog!.Products)
+            {
+                if (product.Builds.Count == 0)
+                    continue;
+
+                if (!products.Contains(product.Variant))
+                    products.Add(product.Variant);
+            }
+
+            return products;
         }
     }
 

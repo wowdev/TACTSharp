@@ -5,6 +5,9 @@
         public void Refresh();
         public Task<bool> RefreshAsync();
 
+        public List<string> GetProductVariants();
+        public Task<List<string>> GetProductVariantsAsync();
+
         public Dictionary<string, VersionConfigs> GetVersions(string product);
         public Task<Dictionary<string, VersionConfigs>> GetVersionsAsync(string product);
 

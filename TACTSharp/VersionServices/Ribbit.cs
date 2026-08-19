@@ -6,19 +6,25 @@ namespace TACTSharp.VersionServices
     {
         private readonly HttpClient Client = new();
 
-        // TODO: Summary/caching?
+        private readonly Dictionary<string, string> RibbitCache = new();
 
         public List<string> GetCDNs(string product, string region)
         {
             var cdns = new List<string>();
-            var cdnsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://{region}.version.battle.net/v2/products/{product}/cdns");
-            var cdnsResponse = Client.Send(cdnsRequest);
-            var cdnString = "";
 
-            using (var ms = new MemoryStream())
+            if (!RibbitCache.TryGetValue("v2/products/" + product + "/cdns", out var cdnString))
             {
-                cdnsResponse.Content.ReadAsStream().CopyTo(ms);
-                cdnString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                var cdnsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://{region}.version.battle.net/v2/products/{product}/cdns");
+                var cdnsResponse = Client.Send(cdnsRequest);
+                cdnString = "";
+
+                using (var ms = new MemoryStream())
+                {
+                    cdnsResponse.Content.ReadAsStream().CopyTo(ms);
+                    cdnString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                }
+
+                RibbitCache["v2/products/" + product + "/cdns"] = cdnString;
             }
 
             foreach (var line in cdnString.Split('\n'))
@@ -42,9 +48,14 @@ namespace TACTSharp.VersionServices
         public async Task<List<string>> GetCDNsAsync(string product, string region)
         {
             var cdns = new List<string>();
-            var cdnsResult = await Client.GetStringAsync($"https://{region}.version.battle.net/v2/products/{product}/cdns");
 
-            foreach (var line in cdnsResult.Split('\n'))
+            if(!RibbitCache.TryGetValue("v2/products/" + product + "/cdns", out var cdnString))
+            {
+                cdnString = await Client.GetStringAsync($"https://{region}.version.battle.net/v2/products/{product}/cdns");
+                RibbitCache["v2/products/" + product + "/cdns"] = cdnString;
+            }
+
+            foreach (var line in cdnString.Split('\n'))
             {
                 if (line.Length == 0)
                     continue;
@@ -65,14 +76,18 @@ namespace TACTSharp.VersionServices
         public string GetCDNDirectory(string product)
         {
             var cdns = new List<string>();
-            var cdnsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://us.version.battle.net/v2/products/{product}/cdns");
-            var cdnsResponse = Client.Send(cdnsRequest);
-            var cdnString = "";
 
-            using (var ms = new MemoryStream())
+            if (!RibbitCache.TryGetValue("v2/products/" + product + "/cdns", out var cdnString))
             {
-                cdnsResponse.Content.ReadAsStream().CopyTo(ms);
-                cdnString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                var cdnsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://us.version.battle.net/v2/products/{product}/cdns");
+                var cdnsResponse = Client.Send(cdnsRequest);
+                cdnString = "";
+
+                using (var ms = new MemoryStream())
+                {
+                    cdnsResponse.Content.ReadAsStream().CopyTo(ms);
+                    cdnString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                }
             }
 
             foreach (var line in cdnString.Split('\n'))
@@ -96,9 +111,14 @@ namespace TACTSharp.VersionServices
         public async Task<string> GetCDNDirectoryAsync(string product)
         {
             var cdns = new List<string>();
-            var cdnsResult = await Client.GetStringAsync($"https://us.version.battle.net/v2/products/{product}/cdns");
 
-            foreach (var line in cdnsResult.Split('\n'))
+            if(!RibbitCache.TryGetValue("v2/products/" + product + "/cdns", out var cdnString))
+            {
+                cdnString = await Client.GetStringAsync($"https://us.version.battle.net/v2/products/{product}/cdns");
+                RibbitCache["v2/products/" + product + "/cdns"] = cdnString;
+            }
+
+            foreach (var line in cdnString.Split('\n'))
             {
                 if (line.Length == 0)
                     continue;
@@ -120,14 +140,19 @@ namespace TACTSharp.VersionServices
         {
             var version = new VersionConfigs() { BuildConfig = "", CDNConfig = "", ProductConfig = "", VersionNumber = 0, VersionString = "" };
 
-            var versionsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://{region}.version.battle.net/v2/products/{product}/versions");
-            var versionsResponse = Client.Send(versionsRequest);
-            var versionsString = "";
-
-            using (var ms = new MemoryStream())
+            if(!RibbitCache.TryGetValue("v2/products/" + product + "/versions", out var versionsString))
             {
-                versionsResponse.Content.ReadAsStream().CopyTo(ms);
-                versionsString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                var versionsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://{region}.version.battle.net/v2/products/{product}/versions");
+                var versionsResponse = Client.Send(versionsRequest);
+                versionsString = "";
+
+                using (var ms = new MemoryStream())
+                {
+                    versionsResponse.Content.ReadAsStream().CopyTo(ms);
+                    versionsString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                }
+
+                RibbitCache["v2/products/" + product + "/versions"] = versionsString;
             }
 
             foreach (var line in versionsString.Split('\n'))
@@ -157,9 +182,13 @@ namespace TACTSharp.VersionServices
         {
             var version = new VersionConfigs() { BuildConfig = "", CDNConfig = "", ProductConfig = "", VersionNumber = 0, VersionString = "" };
 
-            var versionsResult = await Client.GetStringAsync($"https://{region}.version.battle.net/v2/products/{product}/versions");
+            if(!RibbitCache.TryGetValue("v2/products/" + product + "/versions", out var versionsString))
+            {
+                versionsString = await Client.GetStringAsync($"https://{region}.version.battle.net/v2/products/{product}/versions");
+                RibbitCache["v2/products/" + product + "/versions"] = versionsString;
+            }
 
-            foreach (var line in versionsResult.Split('\n'))
+            foreach (var line in versionsString.Split('\n'))
             {
                 if (line.Length == 0)
                     continue;
@@ -186,19 +215,26 @@ namespace TACTSharp.VersionServices
         {
             var versions = new Dictionary<string, VersionConfigs>();
 
-            var versionsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://us.version.battle.net/v2/products/{product}/versions");
-            var versionsResponse = Client.Send(versionsRequest);
-            var versionsString = "";
-
-            using (var ms = new MemoryStream())
+            if(!RibbitCache.TryGetValue("v2/products/" + product + "/versions", out var versionsString))
             {
-                versionsResponse.Content.ReadAsStream().CopyTo(ms);
-                versionsString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                var versionsRequest = new HttpRequestMessage(HttpMethod.Get, $"https://us.version.battle.net/v2/products/{product}/versions");
+                var versionsResponse = Client.Send(versionsRequest);
+                versionsString = "";
+                using (var ms = new MemoryStream())
+                {
+                    versionsResponse.Content.ReadAsStream().CopyTo(ms);
+                    versionsString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                }
+
+                RibbitCache["v2/products/" + product + "/versions"] = versionsString;
             }
 
             foreach (var line in versionsString.Split('\n'))
             {
                 if (line.Length == 0)
+                    continue;
+
+                if (line.StartsWith('#') || line.StartsWith("Region"))
                     continue;
 
                 var splitLine = line.Split('|');
@@ -224,11 +260,18 @@ namespace TACTSharp.VersionServices
         {
             var versions = new Dictionary<string, VersionConfigs>();
 
-            var versionsResult = await Client.GetStringAsync($"https://us.version.battle.net/v2/products/{product}/versions");
+            if(!RibbitCache.TryGetValue("v2/products/" + product + "/versions", out var versionsString))
+            {
+                versionsString = await Client.GetStringAsync($"https://us.version.battle.net/v2/products/{product}/versions");
+                RibbitCache["v2/products/" + product + "/versions"] = versionsString;
+            }
 
-            foreach (var line in versionsResult.Split('\n'))
+            foreach (var line in versionsString.Split('\n'))
             {
                 if (line.Length == 0)
+                    continue;
+
+                if (line.StartsWith('#') || line.StartsWith("Region"))
                     continue;
 
                 var splitLine = line.Split('|');
@@ -250,13 +293,76 @@ namespace TACTSharp.VersionServices
             return versions;
         }
 
+
+        public List<string> GetProductVariants()
+        {
+            var products = new List<string>();
+
+            if(!RibbitCache.TryGetValue("v2/summary", out var summaryString))
+            {
+                var summaryRequest = new HttpRequestMessage(HttpMethod.Get, $"https://us.version.battle.net/v2/summary");
+                var summaryResponse = Client.Send(summaryRequest);
+                summaryString = "";
+                using (var ms = new MemoryStream())
+                {
+                    summaryResponse.Content.ReadAsStream().CopyTo(ms);
+                    summaryString = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                }
+                RibbitCache["v2/summary"] = summaryString;
+            }
+
+            foreach (var summaryLine in summaryString.Split('\n'))
+            {
+                if (summaryLine.StartsWith('#') || summaryLine.StartsWith("Product") || string.IsNullOrWhiteSpace(summaryLine))
+                    continue;
+
+                var product = summaryLine.Split('|');
+
+                // Skip products with no versions
+                if (product[2] != "")
+                    continue;
+
+                products.Add(product[0]);
+            }
+
+            return products;
+        }
+
+        public async Task<List<string>> GetProductVariantsAsync()
+        {
+            var products = new List<string>();
+
+            if(!RibbitCache.TryGetValue("v2/summary", out var summaryString))
+            {
+                summaryString = await Client.GetStringAsync($"https://us.version.battle.net/v2/summary");
+                RibbitCache["v2/summary"] = summaryString;
+            }
+
+            foreach (var summaryLine in summaryString.Split('\n'))
+            {
+                if (summaryLine.StartsWith('#') || summaryLine.StartsWith("Product") || string.IsNullOrWhiteSpace(summaryLine))
+                    continue;
+
+                var product = summaryLine.Split('|');
+
+                // Skip products with no versions
+                if (product[2] != "")
+                    continue;
+
+                products.Add(product[0]);
+            }
+
+            return products;
+        }
+
         public void Refresh()
         {
-            return;
+            RibbitCache.Clear();
         }
 
         public async Task<bool> RefreshAsync()
         {
+            RibbitCache.Clear();
             return true;
         }
     }
