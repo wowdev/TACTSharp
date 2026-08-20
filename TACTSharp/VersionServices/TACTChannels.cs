@@ -183,7 +183,10 @@ namespace TACTSharp.VersionServices
             if (!productResults.Any())
                 return versionResult;
 
-            var regionResults = productResults.First().Builds.Where(r => r.Branches.Contains(region));
+            if (productResults.First().Builds == null || productResults.First().Builds!.Count == 0)
+                return versionResult;
+
+            var regionResults = productResults.First().Builds!.Where(r => r.Branches.Contains(region));
             if (!regionResults.Any())
                 return versionResult;
 
@@ -213,7 +216,10 @@ namespace TACTSharp.VersionServices
             if (!productResults.Any())
                 return versionResult;
 
-            var regionResults = productResults.First().Builds.Where(r => r.Branches.Contains(region));
+            if (productResults.First().Builds == null || productResults.First().Builds!.Count == 0)
+                return versionResult;
+
+            var regionResults = productResults.First().Builds!.Where(r => r.Branches.Contains(region));
             if (!regionResults.Any())
                 return versionResult;
 
@@ -241,7 +247,10 @@ namespace TACTSharp.VersionServices
             if (!productResults.Any())
                 return "";
 
-            var buildDefinitionHash = productResults.First().Builds.First().Definition;
+            if (productResults.First().Builds == null || productResults.First().Builds!.Count == 0)
+                return "";
+
+            var buildDefinitionHash = productResults.First().Builds!.First().Definition;
             var buildDefinitionContent = GetFile(buildDefinitionHash);
             var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
             if (buildDefinitionJSON == null)
@@ -259,7 +268,10 @@ namespace TACTSharp.VersionServices
             if (!productResults.Any())
                 return "";
 
-            var buildDefinitionHash = productResults.First().Builds.First().Definition;
+            if (productResults.First().Builds == null || productResults.First().Builds!.Count == 0)
+                return "";
+
+            var buildDefinitionHash = productResults.First().Builds!.First().Definition;
             var buildDefinitionContent = await GetFileAsync(buildDefinitionHash);
             var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
             if (buildDefinitionJSON == null)
@@ -281,6 +293,9 @@ namespace TACTSharp.VersionServices
 
             foreach (var productResult in productResults)
             {
+                if (productResult.Builds == null)
+                    continue;
+
                 foreach (var build in productResult.Builds)
                 {
                     foreach (var branch in build.Branches)
@@ -320,6 +335,9 @@ namespace TACTSharp.VersionServices
 
             foreach (var productResult in productResults)
             {
+                if (productResult.Builds == null)
+                    continue;
+
                 foreach (var build in productResult.Builds)
                 {
                     foreach (var branch in build.Branches)
@@ -355,7 +373,7 @@ namespace TACTSharp.VersionServices
 
             foreach (var product in Catalog!.Products)
             {
-                if(product.Builds.Count == 0)
+                if(product.Builds == null || product.Builds.Count == 0)
                     continue;
 
                 if (!products.Contains(product.Variant))
@@ -374,7 +392,7 @@ namespace TACTSharp.VersionServices
 
             foreach (var product in Catalog!.Products)
             {
-                if (product.Builds.Count == 0)
+                if (product.Builds == null || product.Builds.Count == 0)
                     continue;
 
                 if (!products.Contains(product.Variant))
@@ -417,7 +435,7 @@ namespace TACTSharp.VersionServices
     public class ChannelProductDefinition
     {
         [JsonPropertyName("builds")]
-        public required List<ChannelProductBuild> Builds { get; set; }
+        public List<ChannelProductBuild>? Builds { get; set; }
 
         // TODO: preloads
         // TODO: alternates
@@ -506,7 +524,7 @@ namespace TACTSharp.VersionServices
     {
         // TODO: Encryption bits
         [JsonPropertyName("cdnPath")]
-        public required string CDNPath { get; set; }
+        public string? CDNPath { get; set; }
 
         [JsonPropertyName("hash")]
         public required string Hash { get; set; }
