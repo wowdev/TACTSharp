@@ -20,12 +20,15 @@ namespace TACTSharp
 
         public string Generate(CDN CDN, Settings Settings, string? hash, string[] archives, bool allowPartial = false)
         {
-            if (string.IsNullOrEmpty(hash))
-                Console.WriteLine("Generating group index for unknown group-index");
-            else
-                Console.WriteLine("Generating group index for " + hash);
+            if (Settings.LogLevel <= TSLogLevel.Info)
+            {
+                if (string.IsNullOrEmpty(hash))
+                    Console.WriteLine("Generating group index for unknown group-index");
+                else
+                    Console.WriteLine("Generating group index for " + hash);
 
-            Console.WriteLine("Loading " + archives.Length + " index files");
+                Console.WriteLine("Loading " + archives.Length + " index files");
+            }
 
             Parallel.For(0, archives.Length, archiveIndex =>
             {
@@ -83,11 +86,16 @@ namespace TACTSharp
                 }
             });
 
-            Console.WriteLine("Done loading index files, got " + Entries.Count + " entries");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Done loading index files, got " + Entries.Count + " entries");
 
-            Console.WriteLine("Sorting entries by EKey");
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Sorting entries by EKey");
+
             Entries.Sort((a, b) => a.EKey.AsSpan().SequenceCompareTo(b.EKey));
-            Console.WriteLine("Done sorting entries");
+
+            if (Settings.LogLevel <= TSLogLevel.Info)
+                Console.WriteLine("Done sorting entries");
 
             var outputFooter = new IndexFooter
             {
