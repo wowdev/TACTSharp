@@ -35,9 +35,19 @@ namespace TACTSharp
                 {
                     indexPath = Path.Combine(Settings.BaseDir, "Data", "indices", archiveName + ".index");
                 }
-                else if(!string.IsNullOrEmpty(Settings.CDNDir) && File.Exists(Path.Combine(Settings.CDNDir, CDN.ProductDirectory, "data", $"{archiveName[0]}{archiveName[1]}", $"{archiveName[2]}{archiveName[3]}", archiveName + ".index")))
+                else if (!string.IsNullOrEmpty(Settings.CDNDir) && File.Exists(Path.Combine(Settings.CDNDir, CDN.ProductDirectory, "data", $"{archiveName[0]}{archiveName[1]}", $"{archiveName[2]}{archiveName[3]}", archiveName + ".index")))
                 {
-                    indexPath = Path.Combine(Settings.CDNDir, CDN.ProductDirectory, "data", $"{archiveName[0]}{archiveName[1]}", $"{archiveName[2]}{archiveName[3]}", archiveName + ".index");
+                    if (!string.IsNullOrEmpty(CDN.ArmadilloKeyName))
+                    {
+                        var indexBytes = CDN.GetFile("data", archives[archiveIndex] + ".index");
+                        indexPath = Path.Combine(Settings.CacheDir, CDN.ProductDirectory, "data", archives[archiveIndex] + ".index");
+                        Directory.CreateDirectory(Path.GetDirectoryName(indexPath)!);
+                        File.WriteAllBytes(indexPath, indexBytes);
+                    }
+                    else
+                    {
+                        indexPath = Path.Combine(Settings.CDNDir, CDN.ProductDirectory, "data", $"{archiveName[0]}{archiveName[1]}", $"{archiveName[2]}{archiveName[3]}", archiveName + ".index");
+                    }
                 }
                 else
                 {
@@ -45,7 +55,7 @@ namespace TACTSharp
                     {
                         _ = CDN.GetFile("data", archives[archiveIndex] + ".index");
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         Console.WriteLine("Failed to load index file " + archives[archiveIndex] + ".index: " + e.Message);
                         if (allowPartial)

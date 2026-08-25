@@ -217,8 +217,6 @@ namespace TACTSharp
 
             if (!string.IsNullOrEmpty(Settings.CDNDir))
             {
-                // TODO: How do we handle encrypted local CDN copies?
-
                 var cdnPath = Path.Combine(Settings.CDNDir, ProductDirectory, type, $"{hash[0]}{hash[1]}", $"{hash[2]}{hash[3]}", hash);
                 FileLocks.TryAdd(cdnPath, new Lock());
 
@@ -231,7 +229,29 @@ namespace TACTSharp
                     }
                     else
                         lock (FileLocks[cdnPath])
-                            return File.ReadAllBytes(cdnPath);
+                        {
+                            using (var ms = new MemoryStream(File.ReadAllBytes(cdnPath)))
+                            {
+                                ms.Position = 0;
+
+                                var output = new Span<byte>();
+
+                                if (!string.IsNullOrEmpty(ArmadilloKeyName))
+                                {
+                                    if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, ms.ToArray(), out output))
+                                    {
+                                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                                            Console.WriteLine("Failed to decrypt file " + hash + " from local CDN folder");
+                                    }
+                                }
+                                else
+                                {
+                                    output = ms.ToArray();
+                                }
+
+                                return output.ToArray();
+                            }
+                        }
                 }
             }
 
@@ -396,8 +416,6 @@ namespace TACTSharp
 
             if (!string.IsNullOrEmpty(Settings.CDNDir))
             {
-                // TODO: How do we handle encrypted local CDN copies?
-
                 var cdnPath = Path.Combine(Settings.CDNDir, ProductDirectory, "data", $"{archive[0]}{archive[1]}", $"{archive[2]}{archive[3]}", archive);
                 FileLocks.TryAdd(cdnPath, new Lock());
                 if (File.Exists(cdnPath))
@@ -416,7 +434,28 @@ namespace TACTSharp
                                 var buffer = new byte[size];
                                 fs.Seek(offset, SeekOrigin.Begin);
                                 fs.ReadExactly(buffer);
-                                return buffer;
+
+                                var output = new Span<byte>();
+
+                                if (!string.IsNullOrEmpty(ArmadilloKeyName))
+                                {
+                                    if (!BLTE.TryDecryptArmadillo(archive, ArmadilloKeyName, buffer, out output, offset))
+                                    {
+                                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                                            Console.WriteLine("Failed to decrypt file " + archive);
+                                    }
+
+                                    if (output[0] != 0x42 || output[1] != 0x4C || output[2] != 0x54 || output[3] != 0x45)
+                                    {
+                                        throw new Exception("Invalid BLTE header, something went wrong with decryption");
+                                    }
+                                }
+                                else
+                                {
+                                    output = buffer;
+                                }
+
+                                return output.ToArray();
                             }
                         }
                     }

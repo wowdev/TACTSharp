@@ -9,6 +9,7 @@ namespace TACTSharp
     public static class BLTE
     {
         private static Dictionary<string, byte[]> ArmadilloKeys = new();
+        private static Lock ArmadilloLock = new Lock();
 
         public static byte[] Decode(ReadOnlySpan<byte> data, ulong totalDecompSize = 0, bool verify = false)
         {
@@ -168,10 +169,13 @@ namespace TACTSharp
                 }
                 else
                 {
-                    using (BinaryReader reader = new(new FileStream(keyName + ".ak", FileMode.Open)))
-                        key = reader.ReadBytes(16);
+                    lock (ArmadilloLock)
+                    {
+                        using (BinaryReader reader = new(new FileStream(keyName + ".ak", FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)))
+                            key = reader.ReadBytes(16);
 
-                    KeyService.SetArmadilloKey(keyName, key);
+                        KeyService.SetArmadilloKey(keyName, key);
+                    }
                 }
             }
 
@@ -181,7 +185,6 @@ namespace TACTSharp
 
             output = KeyService.SalsaInstance.CreateDecryptor(key, IV, offset).TransformFinalBlock(data[0..], 0, data.Length);
             return true;
-
         }
     }
 }
