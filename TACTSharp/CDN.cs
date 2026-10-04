@@ -6,7 +6,7 @@ using TACTSharp.VersionServices;
 
 namespace TACTSharp
 {
-    public class CDN
+    public class CDN : IDisposable
     {
         private readonly HttpClient Client = new();
         private List<string> CDNServers = [];
@@ -24,7 +24,9 @@ namespace TACTSharp
 
         private IVersionService? versionService;
 
-        // TODO: Memory mapped cache file access?
+        private ConcurrentDictionary<int, (MemoryMappedFile mmap, MemoryMappedViewAccessor accessor)> localArchiveMapCache = [];
+        private int disposed;
+
         public CDN(Settings settings)
         {
             Settings = settings;
@@ -33,6 +35,33 @@ namespace TACTSharp
                 versionService = new Ribbit();
             else if (settings.versionService == VersionService.TACTChannels)
                 versionService = new TACTChannels();
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                foreach (var index in CASCIndexInstances.Values)
+                    index.Dispose();
+
+                CASCIndexInstances.Clear();
+
+                foreach (var (mmap, accessor) in localArchiveMapCache.Values)
+                {
+                    accessor.Dispose();
+                    mmap.Dispose();
+                }
+
+                localArchiveMapCache.Clear();
+
+                Client.Dispose();
+            }
         }
 
         public void OpenLocal()
@@ -47,7 +76,7 @@ namespace TACTSharp
             {
                 var localTimer = new Stopwatch();
                 localTimer.Start();
-                LoadCASCIndices();
+                LoadLocalCASC();
                 localTimer.Stop();
                 if (Settings.LogLevel <= TSLogLevel.Info)
                     Console.WriteLine("Loaded local CASC indices in " + Math.Round(localTimer.Elapsed.TotalMilliseconds) + "ms");
@@ -121,7 +150,7 @@ namespace TACTSharp
             if (Settings.LogLevel <= TSLogLevel.Info)
                 Console.WriteLine("Pinged " + CDNServers.Count + " in " + Math.Round(timer.Elapsed.TotalMilliseconds) + "ms, fastest CDNs in order: " + string.Join(", ", CDNServers));
         }
-        private void LoadCASCIndices()
+        private void LoadLocalCASC()
         {
             if (Settings.BaseDir != null)
             {
@@ -157,6 +186,24 @@ namespace TACTSharp
                     {
                         var indexFile = Path.Combine(dataDir, index.Key.ToString("x2") + index.Value.ToString("x2").PadLeft(8, '0') + ".idx");
                         CASCIndexInstances.Add(index.Key, new CASCIndexInstance(indexFile));
+                    }
+
+                    var dataArchives = Directory.GetFiles(dataDir, "data.*");
+                    foreach (var dataArchive in dataArchives)
+                    {
+                        try
+                        {
+                            var archiveIndex = Convert.ToInt32(Path.GetFileName(dataArchive).Split('.')[1]);
+                            var fs = new FileStream(dataArchive, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                            var archiveMMap = MemoryMappedFile.CreateFromFile(fs, null, 0, MemoryMappedFileAccess.Read, HandleInheritability.None, false);
+                            var accessor = archiveMMap.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+                            localArchiveMapCache.TryAdd(archiveIndex, (archiveMMap, accessor));
+                        }
+                        catch (Exception e)
+                        {
+                            if (Settings.LogLevel <= TSLogLevel.Warn)
+                                Console.WriteLine("Failed to memory map local archive " + Path.GetFileName(dataArchive) + ": " + e.Message);
+                        }
                     }
 
                     HasLocal = true;
@@ -234,22 +281,20 @@ namespace TACTSharp
                             {
                                 ms.Position = 0;
 
-                                var output = new Span<byte>();
-
                                 if (!string.IsNullOrEmpty(ArmadilloKeyName))
                                 {
-                                    if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, ms.ToArray(), out output))
+                                    if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, ms.ToArray(), out var output))
                                     {
                                         if (Settings.LogLevel <= TSLogLevel.Warn)
                                             Console.WriteLine("Failed to decrypt file " + hash + " from local CDN folder");
                                     }
+
+                                    return output.ToArray();
                                 }
                                 else
                                 {
-                                    output = ms.ToArray();
+                                    return ms.ToArray();
                                 }
-
-                                return output.ToArray();
                             }
                         }
                 }
@@ -336,43 +381,44 @@ namespace TACTSharp
             var (archiveOffset, archiveSize, archiveIndex) = targetIndex.GetIndexInfo(Convert.FromHexString(eKey));
             if (archiveOffset != -1)
             {
-                // We will probably want to cache these but battle.net scares me so I'm not going to do it right now
+                if (!localArchiveMapCache.TryGetValue(archiveIndex, out var archive))
+                {
+                    data = null;
+                    return false;
+                }
+
                 var archivePath = Path.Combine(Settings.BaseDir, "Data", "data", "data." + archiveIndex.ToString().PadLeft(3, '0'));
                 var archiveLength = new FileInfo(archivePath).Length;
 
                 try
                 {
-                    using (var archive = MemoryMappedFile.CreateFromFile(archivePath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
-                    using (var accessor = archive.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
-                    using (var mmapViewHandle = accessor.SafeMemoryMappedViewHandle)
+                    var mmapViewHandle = archive.accessor.SafeMemoryMappedViewHandle;
+                    byte* ptr = null;
+                    try
                     {
-                        byte* ptr = null;
-                        try
-                        {
-                            mmapViewHandle.AcquirePointer(ref ptr);
+                        mmapViewHandle.AcquirePointer(ref ptr);
 
-                            if (archiveOffset + archiveSize > archiveLength)
-                            {
-                                if (Settings.LogLevel <= TSLogLevel.Warn)
-                                    Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
-                                data = null;
-                                return false;
-                            }
-
-                            data = new ReadOnlySpan<byte>(ptr + archiveOffset, archiveSize).ToArray();
-                            return true;
-                        }
-                        catch (Exception e)
+                        if (archiveOffset + archiveSize > archiveLength)
                         {
                             if (Settings.LogLevel <= TSLogLevel.Warn)
-                                Console.WriteLine("Failed to read local file: " + e.Message);
+                                Console.WriteLine("Skipping local file read: " + archiveOffset + " + " + archiveSize + " > " + archiveLength + " for archive " + "data." + archiveIndex.ToString().PadLeft(3, '0'));
                             data = null;
                             return false;
                         }
-                        finally
-                        {
-                            mmapViewHandle.ReleasePointer();
-                        }
+
+                        data = new ReadOnlySpan<byte>(ptr + archiveOffset, archiveSize);
+                        return true;
+                    }
+                    catch (Exception e)
+                    {
+                        if (Settings.LogLevel <= TSLogLevel.Warn)
+                            Console.WriteLine("Failed to read local file: " + e.Message);
+                        data = null;
+                        return false;
+                    }
+                    finally
+                    {
+                        mmapViewHandle.ReleasePointer();
                     }
                 }
                 catch (Exception e)
@@ -435,11 +481,9 @@ namespace TACTSharp
                                 fs.Seek(offset, SeekOrigin.Begin);
                                 fs.ReadExactly(buffer);
 
-                                var output = new Span<byte>();
-
                                 if (!string.IsNullOrEmpty(ArmadilloKeyName))
                                 {
-                                    if (!BLTE.TryDecryptArmadillo(archive, ArmadilloKeyName, buffer, out output, offset))
+                                    if (!BLTE.TryDecryptArmadillo(archive, ArmadilloKeyName, buffer, out var output, offset))
                                     {
                                         if (Settings.LogLevel <= TSLogLevel.Warn)
                                             Console.WriteLine("Failed to decrypt file " + archive);
@@ -449,13 +493,13 @@ namespace TACTSharp
                                     {
                                         throw new Exception("Invalid BLTE header, something went wrong with decryption");
                                     }
+
+                                    return output.ToArray();
                                 }
                                 else
                                 {
-                                    output = buffer;
+                                    return buffer;
                                 }
-
-                                return output.ToArray();
                             }
                         }
                     }

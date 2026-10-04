@@ -5,7 +5,7 @@ using TACTSharp.Extensions;
 
 namespace TACTSharp
 {
-    public sealed class CASCIndexInstance
+    public sealed class CASCIndexInstance : IDisposable
     {
         private readonly IndexHeader header;
 
@@ -31,6 +31,12 @@ namespace TACTSharp
 
             this.ofsStartOfEntries = 40;
             this.ofsEndOfEntries = (int)(this.ofsStartOfEntries + header.entriesSize);
+        }
+
+        public void Dispose()
+        {
+            accessor.Dispose();
+            indexFile.Dispose();
         }
 
         unsafe static private byte* LowerBoundEkey(byte* begin, byte* end, long dataSize, ReadOnlySpan<byte> needle)
