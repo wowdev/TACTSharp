@@ -100,6 +100,26 @@ namespace TACTTool
                 return;
             }
 
+            if(build.Settings.ProductConfig == null)
+            {
+                var versionService = new TACTSharp.VersionServices.Ribbit();
+                var version = await versionService.GetVersionAsync(build.Settings.Product, build.Settings.Region);
+
+                // Fall back to the first version if there isn't one for our preferred region
+                if(version.VersionNumber == 0)
+                {
+                    var versions = await versionService.GetVersionsAsync(build.Settings.Product);
+                    if (versions.Count > 0)
+                        version = versions.Values.First();
+                }
+
+                if (version.VersionNumber != 0)
+                    build.Settings.ProductConfig ??= version.ProductConfig;
+
+                if(build.Settings.ProductConfig == null)
+                    throw new Exception("Failed to find product config for product " + build.Settings.Product + " (" + build.Settings.Region + ")");
+            }
+
             build.LoadConfigs(build.Settings.BuildConfig, build.Settings.CDNConfig, build.Settings.ProductConfig);
 
             #endregion
