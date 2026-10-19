@@ -47,6 +47,7 @@
 
                 var availableBuild = new AvailableBuild
                 {
+                    Branch = splitLine[headerMap["Branch"]],
                     BuildConfig = splitLine[headerMap["Build Key"]],
                     CDNConfig = splitLine[headerMap["CDN Key"]],
                     CDNPath = splitLine[headerMap["CDN Path"]],

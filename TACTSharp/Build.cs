@@ -18,6 +18,8 @@ namespace TACTSharp
 
         public Settings Settings { get; private set; } = new Settings();
 
+        private IVersionService? versionService;
+
         public BuildInstance()
         {
             cdn = new(Settings);
@@ -25,6 +27,124 @@ namespace TACTSharp
 
         public void ResetCDN() => cdn = new(Settings);
 
+        /// <summary>
+        /// Loads local build from game installation folder.
+        /// </summary>
+        /// <param name="folder">Path to the game installation folder</param>
+        /// <param name="product">TACT product (e.g. wow, wowt, wow_beta, etc)</param>
+        /// <exception cref="FileNotFoundException">If .build.info is not found in given folder</exception>
+        /// <exception cref="KeyNotFoundException">If no .build.info entry exists for the given product</exception>
+        public void LoadLocal(string folder, string product)
+        {
+            var buildInfoPath = Path.Combine(folder, ".build.info");
+
+            if (!File.Exists(buildInfoPath))
+                throw new FileNotFoundException("No .build.info found in folder " + folder);
+
+            Settings.BaseDir = folder;
+
+            var buildInfo = new BuildInfo(buildInfoPath, Settings, cdn);
+
+            if (!buildInfo.Entries.Any(x => x.Product == product))
+                throw new KeyNotFoundException("No .build.info found for product " + product + ".");
+
+            var build = buildInfo.Entries.First(x => x.Product == product);
+
+            if (!string.IsNullOrEmpty(build.Armadillo))
+                cdn.ArmadilloKeyName = build.Armadillo;
+
+            // We also need product config, so initialize a version service regardless for now?
+            if (versionService == null)
+            {
+                if (Settings.versionService == VersionService.TACTChannels)
+                    versionService = new VersionServices.TACTChannels();
+                else
+                    versionService = new VersionServices.Ribbit();
+            }
+
+            var versionByRegion = versionService.GetVersions(product);
+
+            string productConfig = string.Empty;
+
+            // Try to get the build info for the current region if available, fall back to first region
+            if (versionByRegion.TryGetValue(build.Branch, out var regionBuildInfo))
+            {
+                if (!string.IsNullOrEmpty(regionBuildInfo.ProductConfig))
+                    productConfig = regionBuildInfo.ProductConfig;
+            }
+            else
+            {
+                var firstRegionBuildInfo = versionByRegion.Values.FirstOrDefault();
+                if (firstRegionBuildInfo != null)
+                {
+                    if (!string.IsNullOrEmpty(firstRegionBuildInfo.ProductConfig))
+                        productConfig = firstRegionBuildInfo.ProductConfig;
+                }
+            }
+
+            LoadConfigs(build.BuildConfig, build.CDNConfig, productConfig);
+            Load();
+        }
+
+        /// <summary>
+        /// Load online build by product.
+        /// </summary>
+        /// <param name="product">TACT product (e.g. wow, wowt, wow_beta, etc)</param>
+        /// <param name="region">Region, (e.g. us, eu, tw, cn, etc)</param>
+        public void LoadOnline(string product, string region = "us")
+        {
+            if (versionService == null)
+            {
+                if (Settings.versionService == VersionService.TACTChannels)
+                    versionService = new VersionServices.TACTChannels();
+                else
+                    versionService = new VersionServices.Ribbit();
+            }
+
+            var versionByRegion = versionService.GetVersions(product);
+
+            string buildConfig = string.Empty;
+            string cdnConfig = string.Empty;
+            string productConfig = string.Empty;
+
+            // Try to get the build info for the current region if available, fall back to first region
+            if (versionByRegion.TryGetValue(region, out var regionBuildInfo))
+            {
+                if (string.IsNullOrEmpty(buildConfig))
+                    buildConfig = regionBuildInfo.BuildConfig;
+                if (string.IsNullOrEmpty(cdnConfig))
+                    cdnConfig = regionBuildInfo.CDNConfig;
+                if (!string.IsNullOrEmpty(regionBuildInfo.ProductConfig))
+                    productConfig = regionBuildInfo.ProductConfig;
+            }
+            else
+            {
+                if (Settings.LogLevel <= TSLogLevel.Warn)
+                    Console.WriteLine("No online build found for specified region " + region + ", falling back to first available region.");
+
+                var firstRegionBuildInfo = versionByRegion.Values.FirstOrDefault();
+                if (firstRegionBuildInfo != null)
+                {
+                    if (string.IsNullOrEmpty(buildConfig))
+                        buildConfig = firstRegionBuildInfo.BuildConfig;
+                    if (string.IsNullOrEmpty(cdnConfig))
+                        cdnConfig = firstRegionBuildInfo.CDNConfig;
+                    if (!string.IsNullOrEmpty(firstRegionBuildInfo.ProductConfig))
+                        productConfig = firstRegionBuildInfo.ProductConfig;
+                }
+            }
+
+            LoadConfigs(buildConfig, cdnConfig, productConfig);
+            Load();
+        }
+
+        /// <summary>
+        /// Loads specified TACT build and CDN configs. Tries configs by filename in current folder first (if exists), then the normal loading route (basedir => CDN cache => CDN). 
+        /// Requires you to call Load() manually to load the specified build afterwards.
+        /// </summary>
+        /// <param name="buildConfig">Build config file path or 32 character hex string</param>
+        /// <param name="cdnConfig">CDN config file path or 32 character hex string</param>
+        /// <exception cref="Exception"></exception>
         public void LoadConfigs(string buildConfig, string cdnConfig)
         {
             Settings.BuildConfig = buildConfig;
@@ -57,6 +177,14 @@ namespace TACTSharp
                 Console.WriteLine("Configs loaded in " + Math.Ceiling(timer.Elapsed.TotalMilliseconds) + "ms");
         }
 
+        /// <summary>
+        /// Loads specified TACT build, CDN and product configs. Tries configs by filename in current folder first (if exists), then the normal loading route (basedir => CDN cache => CDN). 
+        /// Requires you to call Load() manually to load the specified build afterwards.
+        /// </summary>
+        /// <param name="buildConfig">Build config file path or 32 character hex string</param>
+        /// <param name="cdnConfig">CDN config file path or 32 character hex string</param>
+        /// <param name="productConfig">Product config file path or 32 character hex string</param>
+        /// <exception cref="Exception"></exception>
         public void LoadConfigs(string buildConfig, string cdnConfig, string productConfig)
         {
             Settings.ProductConfig = productConfig;
@@ -67,7 +195,10 @@ namespace TACTSharp
             if (!cdn.HasLocal && !string.IsNullOrEmpty(Settings.BaseDir))
                 cdn.OpenLocal();
 
-            ProductConfig = cdn.GetProductConfig(productConfig);
+            if (File.Exists(productConfig))
+                ProductConfig = File.ReadAllText(productConfig);
+            else
+                ProductConfig = cdn.GetProductConfig(productConfig);
 
             if (ProductConfig == null)
                 throw new Exception("Failed to load product config");
@@ -102,6 +233,10 @@ namespace TACTSharp
             LoadConfigs(buildConfig, cdnConfig);
         }
 
+        /// <summary>
+        /// Loads the specified build, provided configs are loaded.
+        /// </summary>
+        /// <exception cref="Exception"></exception>
         public void Load()
         {
             if (BuildConfig == null || CDNConfig == null)
