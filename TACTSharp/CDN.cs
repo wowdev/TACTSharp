@@ -25,7 +25,6 @@ namespace TACTSharp
         private IVersionService? versionService;
 
         private ConcurrentDictionary<int, (MemoryMappedFile mmap, MemoryMappedViewAccessor accessor)> localArchiveMapCache = [];
-        private int disposed;
 
         public CDN(Settings settings)
         {
