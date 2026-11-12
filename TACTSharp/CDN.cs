@@ -274,28 +274,26 @@ namespace TACTSharp
                             Console.WriteLine("Warning! Found " + hash + " in CDN dir but size does not match! " + size + " != " + new FileInfo(cdnPath).Length + ", continuing to download.");
                     }
                     else
+                    {
                         lock (FileLocks[cdnPath])
                         {
-                            using (var ms = new MemoryStream(File.ReadAllBytes(cdnPath)))
+                            var data = File.ReadAllBytes(cdnPath);
+                            if (!string.IsNullOrEmpty(ArmadilloKeyName))
                             {
-                                ms.Position = 0;
-
-                                if (!string.IsNullOrEmpty(ArmadilloKeyName))
+                                if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, data, out var output))
                                 {
-                                    if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, ms.ToArray(), out var output))
-                                    {
-                                        if (Settings.LogLevel <= TSLogLevel.Warn)
-                                            Console.WriteLine("Failed to decrypt file " + hash + " from local CDN folder");
-                                    }
+                                    if (Settings.LogLevel <= TSLogLevel.Warn)
+                                        Console.WriteLine("Failed to decrypt file " + hash + " from local CDN folder");
+                                }
 
-                                    return output.ToArray();
-                                }
-                                else
-                                {
-                                    return ms.ToArray();
-                                }
+                                return output.ToArray();
+                            }
+                            else
+                            {
+                                return data;
                             }
                         }
+                    }
                 }
             }
 
@@ -339,7 +337,6 @@ namespace TACTSharp
                                 using (var ms = new MemoryStream())
                                 {
                                     response.Content.ReadAsStream(token).CopyTo(ms);
-                                    ms.Position = 0;
                                     if (!BLTE.TryDecryptArmadillo(hash, ArmadilloKeyName, ms.ToArray(), out var output))
                                     {
                                         if (Settings.LogLevel <= TSLogLevel.Warn)
@@ -377,7 +374,7 @@ namespace TACTSharp
             var indexBucket = (i & 0xf) ^ (i >> 4);
 
             var targetIndex = CASCIndexInstances[(byte)indexBucket];
-            var (archiveOffset, archiveSize, archiveIndex) = targetIndex.GetIndexInfo(Convert.FromHexString(eKey));
+            var (archiveOffset, archiveSize, archiveIndex) = targetIndex.GetIndexInfo(eKeyBytes);
             if (archiveOffset != -1)
             {
                 if (!localArchiveMapCache.TryGetValue(archiveIndex, out var archive))
@@ -562,7 +559,6 @@ namespace TACTSharp
                                     using (var ms = new MemoryStream())
                                     {
                                         response.Content.ReadAsStream(token).CopyTo(ms);
-                                        ms.Position = 0;
                                         if (!BLTE.TryDecryptArmadillo(archive, ArmadilloKeyName, ms.ToArray(), out var output, offset))
                                         {
                                             if (Settings.LogLevel <= TSLogLevel.Warn)
