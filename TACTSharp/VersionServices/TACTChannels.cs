@@ -64,7 +64,7 @@ namespace TACTSharp.VersionServices
             return true;
         }
 
-        public async Task<string> GetFileAsync(string hash)
+        public async Task<string> GetFileAsync(string hash, bool isFullPath = false)
         {
             if(Settings.LogLevel <= TSLogLevel.Debug)
                 Console.WriteLine("Downloading TACT Channel file " + hash + "...");
@@ -75,17 +75,24 @@ namespace TACTSharp.VersionServices
             Directory.CreateDirectory(cacheDir);
 
             var cacheFile = System.IO.Path.Combine(cacheDir, Path, hash[0..2], hash[2..4], hash);
+            if(isFullPath)
+                cacheFile = System.IO.Path.Combine(cacheDir, hash);
+
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(cacheFile)!);
 
             if (System.IO.File.Exists(cacheFile))
                 return await System.IO.File.ReadAllTextAsync(cacheFile);
 
-            var result = await client.GetStringAsync("https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash);
+            var url = "https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash;
+            if(isFullPath)
+                url = "https://distribution.version.battle.net/" + hash;
+
+            var result = await client.GetStringAsync(url);
             await System.IO.File.WriteAllTextAsync(cacheFile, result);
             return result;
         }
 
-        public string GetFile(string hash)
+        public string GetFile(string hash, bool isFullPath = false)
         {
             if(Settings.LogLevel <= TSLogLevel.Debug)
                 Console.WriteLine("Downloading TACT Channel file " + hash + "...");
@@ -96,12 +103,18 @@ namespace TACTSharp.VersionServices
             Directory.CreateDirectory(cacheDir);
 
             var cacheFile = System.IO.Path.Combine(cacheDir, Path, hash[0..2], hash[2..4], hash);
+            if(isFullPath)
+                cacheFile = System.IO.Path.Combine(cacheDir, hash);
+
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(cacheFile)!);
 
             if (System.IO.File.Exists(cacheFile))
                 return System.IO.File.ReadAllText(cacheFile);
 
             var catalogRequest = new HttpRequestMessage(HttpMethod.Get, "https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash);
+            if(isFullPath)
+                catalogRequest = new HttpRequestMessage(HttpMethod.Get, "https://distribution.version.battle.net/" + hash);
+
             var catalogResult = client.Send(catalogRequest);
             using (var catalogMS = new MemoryStream())
             {
@@ -119,22 +132,35 @@ namespace TACTSharp.VersionServices
             if (Catalog == null)
                 Refresh();
 
+            var version = GetVersion(product, region);
+
             var productResults = Catalog!.Products.Where(p => p.Variant == product);
             if (!productResults.Any())
                 return cdns;
 
-            var regionResults = productResults.First().Regions.Where(r => r.Branches.Contains(region));
+            if (productResults.First().Builds == null || productResults.First().Builds!.Count == 0)
+                return cdns;
+
+            var buildRegionResults = productResults.First().Builds!.Where(r => r.Branches.Contains(region));
+            if (!buildRegionResults.Any())
+                return cdns;
+
+            var buildDefinitionHash = buildRegionResults.First().Definition;
+            var buildDefinitionJSON = GetChannelBuildDefinition(buildDefinitionHash);
+            if (buildDefinitionJSON == null)
+                return cdns;
+
+            var regionResults = buildDefinitionJSON.Regions.Where(r => r.Branches.Contains(region));
 
             // If no region is found, fall back to the first one (e.g. wow_classic_titan might be requested for non-CN regions but only has CN CDNs)
             if (!regionResults.Any())
-                regionResults = productResults.First().Regions;
+                regionResults = buildDefinitionJSON.Regions;
 
             if (!regionResults.Any())
                 return cdns;
 
             var cdnDefinitionHash = regionResults.First().CDNs;
-            var cdnDefinitionContent = GetFile(cdnDefinitionHash);
-            var cdnDefinitionJSON = JsonSerializer.Deserialize(cdnDefinitionContent, ChannelCDNDefinitionContext.Default.ChannelCDNDefinition);
+            var cdnDefinitionJSON = GetChannelCDNDefinition(cdnDefinitionHash);
             if (cdnDefinitionJSON == null)
                 return cdns;
 
@@ -153,18 +179,22 @@ namespace TACTSharp.VersionServices
             if (!productResults.Any())
                 return cdns;
 
-            var regionResults = productResults.First().Regions.Where(r => r.Branches.Contains(region));
+            var buildRegionResults = productResults.First().Builds!.Where(r => r.Branches.Contains(region));
+            if (!buildRegionResults.Any())
+                return cdns;
 
-            // If no region is found, fall back to the first one (e.g. wow_classic_titan might be requested for non-CN regions but only has CN CDNs)
-            if (!regionResults.Any())
-                regionResults = productResults.First().Regions;
+            var buildDefinitionHash = buildRegionResults.First().Definition;
+            var buildDefinitionJSON = await GetChannelBuildDefinitionAsync(buildDefinitionHash);
+            if (buildDefinitionJSON == null)
+                return cdns;
+
+            var regionResults = buildDefinitionJSON.Regions.Where(r => r.Branches.Contains(region));
 
             if (!regionResults.Any())
                 return cdns;
 
             var cdnDefinitionHash = regionResults.First().CDNs;
-            var cdnDefinitionContent = await GetFileAsync(cdnDefinitionHash);
-            var cdnDefinitionJSON = JsonSerializer.Deserialize(cdnDefinitionContent, ChannelCDNDefinitionContext.Default.ChannelCDNDefinition);
+            var cdnDefinitionJSON = await GetChannelCDNDefinitionAsync(cdnDefinitionHash);
             if (cdnDefinitionJSON == null)
                 return cdns;
 
@@ -191,13 +221,16 @@ namespace TACTSharp.VersionServices
                 return versionResult;
 
             var buildDefinitionHash = regionResults.First().Definition;
-            var buildDefinitionContent = GetFile(buildDefinitionHash);
-            var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+            var buildDefinitionJSON = GetChannelBuildDefinition(buildDefinitionHash);
             if (buildDefinitionJSON == null)
                 return versionResult;
 
+            var cdnKeyFileJSON = GetChannelBuildCDNKey(buildDefinitionJSON.CDNKeyFile.Name);
+            if (cdnKeyFileJSON == null)
+                return versionResult;
+
             versionResult.BuildConfig = buildDefinitionJSON.BuildKey;
-            versionResult.CDNConfig = buildDefinitionJSON.CDNKey;
+            versionResult.CDNConfig = cdnKeyFileJSON.CDNKey;
             versionResult.ProductConfig = buildDefinitionJSON.ProductConfig.Hash;
             versionResult.VersionNumber = buildDefinitionJSON.VersionNumber;
             versionResult.VersionString = buildDefinitionJSON.VersionString;
@@ -224,13 +257,16 @@ namespace TACTSharp.VersionServices
                 return versionResult;
 
             var buildDefinitionHash = regionResults.First().Definition;
-            var buildDefinitionContent = await GetFileAsync(buildDefinitionHash);
-            var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+            var buildDefinitionJSON = await GetChannelBuildDefinitionAsync(buildDefinitionHash);
             if (buildDefinitionJSON == null)
                 return versionResult;
 
+            var cdnKeyFileJSON = await GetChannelBuildCDNKeyAsync(buildDefinitionJSON.CDNKeyFile.Name);
+            if (cdnKeyFileJSON == null)
+                return versionResult;
+
             versionResult.BuildConfig = buildDefinitionJSON.BuildKey;
-            versionResult.CDNConfig = buildDefinitionJSON.CDNKey;
+            versionResult.CDNConfig = cdnKeyFileJSON.CDNKey;
             versionResult.ProductConfig = buildDefinitionJSON.ProductConfig.Hash;
             versionResult.VersionNumber = buildDefinitionJSON.VersionNumber;
             versionResult.VersionString = buildDefinitionJSON.VersionString;
@@ -251,8 +287,7 @@ namespace TACTSharp.VersionServices
                 return "";
 
             var buildDefinitionHash = productResults.First().Builds!.First().Definition;
-            var buildDefinitionContent = GetFile(buildDefinitionHash);
-            var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+            var buildDefinitionJSON = GetChannelBuildDefinition(buildDefinitionHash);
             if (buildDefinitionJSON == null)
                 return "";
 
@@ -272,8 +307,7 @@ namespace TACTSharp.VersionServices
                 return "";
 
             var buildDefinitionHash = productResults.First().Builds!.First().Definition;
-            var buildDefinitionContent = await GetFileAsync(buildDefinitionHash);
-            var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+            var buildDefinitionJSON = await GetChannelBuildDefinitionAsync(buildDefinitionHash);
             if (buildDefinitionJSON == null)
                 return "";
 
@@ -302,15 +336,21 @@ namespace TACTSharp.VersionServices
                     {
                         var buildDefinitionHash = build.Definition;
 
-                        var buildDefinitionContent = GetFile(buildDefinitionHash);
-                        var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+                        var buildDefinitionJSON = GetChannelBuildDefinition(buildDefinitionHash);
                         if (buildDefinitionJSON == null)
+                            continue;
+
+                        if (buildDefinitionJSON.CDNKeyFile == null)
+                            continue;
+
+                        var cdnKeyFileJSON = GetChannelBuildCDNKey(buildDefinitionJSON.CDNKeyFile.Name);
+                        if(cdnKeyFileJSON == null)
                             continue;
 
                         versionResult[branch] = new VersionConfigs()
                         {
                             BuildConfig = buildDefinitionJSON.BuildKey,
-                            CDNConfig = buildDefinitionJSON.CDNKey,
+                            CDNConfig = cdnKeyFileJSON.CDNKey,
                             ProductConfig = buildDefinitionJSON.ProductConfig.Hash,
                             VersionNumber = buildDefinitionJSON.VersionNumber,
                             VersionString = buildDefinitionJSON.VersionString
@@ -344,15 +384,18 @@ namespace TACTSharp.VersionServices
                     {
                         var buildDefinitionHash = build.Definition;
 
-                        var buildDefinitionContent = await GetFileAsync(buildDefinitionHash);
-                        var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+                        var buildDefinitionJSON = await GetChannelBuildDefinitionAsync(buildDefinitionHash);
                         if (buildDefinitionJSON == null)
+                            continue;
+
+                        var cdnKeyFileJSON = await GetChannelBuildCDNKeyAsync(buildDefinitionJSON.CDNKeyFile.Name);
+                        if (cdnKeyFileJSON == null)
                             continue;
 
                         versionResult[branch] = new VersionConfigs()
                         {
                             BuildConfig = buildDefinitionJSON.BuildKey,
-                            CDNConfig = buildDefinitionJSON.CDNKey,
+                            CDNConfig = cdnKeyFileJSON.CDNKey,
                             ProductConfig = buildDefinitionJSON.ProductConfig.Hash,
                             VersionNumber = buildDefinitionJSON.VersionNumber,
                             VersionString = buildDefinitionJSON.VersionString
@@ -401,6 +444,48 @@ namespace TACTSharp.VersionServices
 
             return products;
         }
+
+        private ChannelBuildDefinition? GetChannelBuildDefinition(string buildDefinitionHash)
+        {
+            var buildDefinitionContent = GetFile(buildDefinitionHash);
+            var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+            return buildDefinitionJSON;
+        }
+
+        private async Task<ChannelBuildDefinition?> GetChannelBuildDefinitionAsync(string buildDefinitionHash)
+        {
+            var buildDefinitionContent = await GetFileAsync(buildDefinitionHash);
+            var buildDefinitionJSON = JsonSerializer.Deserialize(buildDefinitionContent, ChannelBuildDefinitionContext.Default.ChannelBuildDefinition);
+            return buildDefinitionJSON;
+        }
+
+        private ChannelCDNDefinition? GetChannelCDNDefinition(string cdnDefinitionHash)
+        {
+            var cdnDefinitionContent = GetFile(cdnDefinitionHash);
+            var cdnDefinitionJSON = JsonSerializer.Deserialize(cdnDefinitionContent, ChannelCDNDefinitionContext.Default.ChannelCDNDefinition);
+            return cdnDefinitionJSON;
+        }
+
+        private async Task<ChannelCDNDefinition?> GetChannelCDNDefinitionAsync(string cdnDefinitionHash)
+        {
+            var cdnDefinitionContent = await GetFileAsync(cdnDefinitionHash);
+            var cdnDefinitionJSON = JsonSerializer.Deserialize(cdnDefinitionContent, ChannelCDNDefinitionContext.Default.ChannelCDNDefinition);
+            return cdnDefinitionJSON;
+        }
+
+        private ChannelBuildCDNKey? GetChannelBuildCDNKey(string cdnKeyFileHash)
+        {
+            var cdnKeyFileContent = GetFile(cdnKeyFileHash, true);
+            var cdnKeyFileJSON = JsonSerializer.Deserialize(cdnKeyFileContent, ChannelBuildCDNKeyContext.Default.ChannelBuildCDNKey);
+            return cdnKeyFileJSON;
+        }
+
+        private async Task<ChannelBuildCDNKey?> GetChannelBuildCDNKeyAsync(string cdnKeyFileHash)
+        {
+            var cdnKeyFileContent = await GetFileAsync(cdnKeyFileHash, true);
+            var cdnKeyFileJSON = JsonSerializer.Deserialize(cdnKeyFileContent, ChannelBuildCDNKeyContext.Default.ChannelBuildCDNKey);
+            return cdnKeyFileJSON;
+        }
     }
 
     public class ChannelDefinition
@@ -448,9 +533,6 @@ namespace TACTSharp.VersionServices
         [JsonPropertyName("product")]
         public required string Product { get; set; }
 
-        [JsonPropertyName("regions")]
-        public required List<ChannelProductRegion> Regions { get; set; }
-
         [JsonPropertyName("variant")]
         public required string Variant { get; set; }
     }
@@ -489,8 +571,8 @@ namespace TACTSharp.VersionServices
         [JsonPropertyName("buildKey")]
         public required string BuildKey { get; set; }
 
-        [JsonPropertyName("cdnKey")]
-        public required string CDNKey { get; set; }
+        [JsonPropertyName("cdnKeyFile")]
+        public required ChannelBuildCDNKeyFile CDNKeyFile { get; set; }
 
         [JsonPropertyName("keyRing")]
         public required string KeyRing { get; set; }
@@ -498,11 +580,11 @@ namespace TACTSharp.VersionServices
         [JsonPropertyName("path")]
         public required string Path { get; set; }
 
-        [JsonPropertyName("pipelineId")]
-        public required int PipelineId { get; set; }
-
         [JsonPropertyName("productConfig")]
         public required ChannelBuildDefinitionProductConfig ProductConfig { get; set; }
+
+        [JsonPropertyName("regions")]
+        public required List<ChannelProductRegion> Regions { get; set; }
 
         [JsonPropertyName("versionNumber")]
         public required int VersionNumber { get; set; }
@@ -549,6 +631,23 @@ namespace TACTSharp.VersionServices
 
     [JsonSerializable(typeof(ChannelCDNDefinition))]
     public partial class ChannelCDNDefinitionContext : JsonSerializerContext
+    {
+    }
+
+    public class ChannelBuildCDNKeyFile
+    {
+        [JsonPropertyName("name")]
+        public required string Name { get; set; }
+    }
+
+    public class ChannelBuildCDNKey
+    {
+        [JsonPropertyName("cdnKey")]
+        public required string CDNKey { get; set; }
+    }
+
+    [JsonSerializable(typeof(ChannelBuildCDNKey))]
+    public partial class ChannelBuildCDNKeyContext : JsonSerializerContext
     {
     }
 }
