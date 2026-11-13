@@ -66,7 +66,7 @@ namespace TACTSharp.VersionServices
 
         public async Task<string> GetFileAsync(string hash, bool isFullPath = false)
         {
-            if(Settings.LogLevel <= TSLogLevel.Debug)
+            if (Settings.LogLevel <= TSLogLevel.Debug)
                 Console.WriteLine("Downloading TACT Channel file " + hash + "...");
 
             // TODO: Setting
@@ -75,7 +75,7 @@ namespace TACTSharp.VersionServices
             Directory.CreateDirectory(cacheDir);
 
             var cacheFile = System.IO.Path.Combine(cacheDir, Path, hash[0..2], hash[2..4], hash);
-            if(isFullPath)
+            if (isFullPath)
                 cacheFile = System.IO.Path.Combine(cacheDir, hash);
 
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(cacheFile)!);
@@ -84,7 +84,7 @@ namespace TACTSharp.VersionServices
                 return await System.IO.File.ReadAllTextAsync(cacheFile);
 
             var url = "https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash;
-            if(isFullPath)
+            if (isFullPath)
                 url = "https://distribution.version.battle.net/" + hash;
 
             var result = await client.GetStringAsync(url);
@@ -94,7 +94,7 @@ namespace TACTSharp.VersionServices
 
         public string GetFile(string hash, bool isFullPath = false)
         {
-            if(Settings.LogLevel <= TSLogLevel.Debug)
+            if (Settings.LogLevel <= TSLogLevel.Debug)
                 Console.WriteLine("Downloading TACT Channel file " + hash + "...");
 
             // TODO: Setting
@@ -103,16 +103,20 @@ namespace TACTSharp.VersionServices
             Directory.CreateDirectory(cacheDir);
 
             var cacheFile = System.IO.Path.Combine(cacheDir, Path, hash[0..2], hash[2..4], hash);
-            if(isFullPath)
+            if (isFullPath)
                 cacheFile = System.IO.Path.Combine(cacheDir, hash);
 
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(cacheFile)!);
 
-            if (System.IO.File.Exists(cacheFile))
-                return System.IO.File.ReadAllText(cacheFile);
+            // HOPEFULLY TEMP WORKAROUND: Don't return cached cdnkeys, Blizz does not purge these files by filename for some reason.
+            if (!hash.Contains("cdnkeys"))
+            {
+                if (System.IO.File.Exists(cacheFile))
+                    return System.IO.File.ReadAllText(cacheFile);
+            }
 
             var catalogRequest = new HttpRequestMessage(HttpMethod.Get, "https://distribution.version.battle.net/" + Path + "/" + hash[0..2] + "/" + hash[2..4] + "/" + hash);
-            if(isFullPath)
+            if (isFullPath)
                 catalogRequest = new HttpRequestMessage(HttpMethod.Get, "https://distribution.version.battle.net/" + hash);
 
             var catalogResult = client.Send(catalogRequest);
@@ -344,7 +348,7 @@ namespace TACTSharp.VersionServices
                             continue;
 
                         var cdnKeyFileJSON = GetChannelBuildCDNKey(buildDefinitionJSON.CDNKeyFile.Name);
-                        if(cdnKeyFileJSON == null)
+                        if (cdnKeyFileJSON == null)
                             continue;
 
                         versionResult[branch] = new VersionConfigs()
@@ -416,7 +420,7 @@ namespace TACTSharp.VersionServices
 
             foreach (var product in Catalog!.Products)
             {
-                if(product.Builds == null || product.Builds.Count == 0)
+                if (product.Builds == null || product.Builds.Count == 0)
                     continue;
 
                 if (!products.Contains(product.Variant))
