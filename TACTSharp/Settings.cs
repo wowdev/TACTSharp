@@ -19,7 +19,8 @@
         public List<string> AdditionalCDNs = [];
         public List<string> BlockedCDNs = [];
         public static TSLogLevel LogLevel = TSLogLevel.Info;
-        public bool ForceHTTP1 = false;
+        public bool CDNForceHTTP1 = false;
+        public bool CDNUseHTTPS = true;
         public VersionService versionService = VersionService.Ribbit;
     }
 

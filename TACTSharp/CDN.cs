@@ -302,13 +302,13 @@ namespace TACTSharp
 
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"https://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
+                var url = $"{(Settings.CDNUseHTTPS ? "https" : "http")}://{CDNServers[i]}/{ProductDirectory}/{type}/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
                 if (Settings.LogLevel <= TSLogLevel.Info)
                     Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
-                if (Settings.ForceHTTP1)
+                if (Settings.CDNForceHTTP1)
                     request.Version = new Version(1, 1);
 
                 lock (FileLocks[cachePath])
@@ -515,7 +515,7 @@ namespace TACTSharp
 
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"https://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
+                var url = $"{(Settings.CDNUseHTTPS ? "https" : "http")}://{CDNServers[i]}/{ProductDirectory}/data/{archive[0]}{archive[1]}/{archive[2]}{archive[3]}/{archive}";
 
                 if (Settings.LogLevel <= TSLogLevel.Info)
                     Console.WriteLine("Downloading file " + eKey + " from archive " + archive + " at offset " + offset + " with size " + size + " from " + CDNServers[i]);
@@ -528,7 +528,7 @@ namespace TACTSharp
                     }
                 };
 
-                if (Settings.ForceHTTP1)
+                if (Settings.CDNForceHTTP1)
                     request.Version = new Version(1, 1);
 
                 try
@@ -662,14 +662,14 @@ namespace TACTSharp
 
             for (var i = 0; i < CDNServers.Count; i++)
             {
-                var url = $"https://{CDNServers[i]}/tpr/configs/data/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
+                var url = $"{(Settings.CDNUseHTTPS ? "https" : "http")}://{CDNServers[i]}/tpr/configs/data/{hash[0]}{hash[1]}/{hash[2]}{hash[3]}/{hash}";
 
                 if (Settings.LogLevel <= TSLogLevel.Info)
                     Console.WriteLine("Downloading " + url);
 
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
 
-                if (Settings.ForceHTTP1)
+                if (Settings.CDNForceHTTP1)
                     request.Version = new Version(1, 1);
 
                 var response = Client.Send(request, token);
